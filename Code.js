@@ -8,6 +8,7 @@ const SHEETS = {
   GOVERNMENT: "Government",
   COMPANY_SNAPSHOTS: "CompanySnapshots",
   GOVERNMENT_LEDGER: "GovernmentLedger",
+  HOLDINGS: "Holdings",
 };
 
 function doGet(e) {

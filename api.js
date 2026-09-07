@@ -1267,9 +1267,6 @@ function api_adminChangeUserPin(adminPass, userId, newPin){
 //      _isTrue_ / _fmtJst_ / uuid_ / lockRun_ / _appendTx_ / api_pay
 // ==============================
 
-// ====== シート定義（どこかで一度だけ） ======
-SHEETS.HOLDINGS = "Holdings";
-
 // ====== Holdings（保有） ======
 function _getHoldingsSheet_(){
   const sh = SpreadsheetApp.getActive().getSheetByName(SHEETS.HOLDINGS);
