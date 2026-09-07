@@ -877,19 +877,19 @@ function api_adminWithdrawAllShops(adminPass, withdrawAmount, reason, mode){
 }
 
 /**
- * 定期実行用：残高への利子付与（利率 0.05 固定）
- * 引数なしで実行できるため、トリガー設定が可能です。
+ * 毎週月曜日の時間主導型トリガー用（利率5%）。
+ * 関数名を維持しているため、既存トリガーの作り直しは不要です。
  */
 function api_adminInterestOnBalance_Trigger() {
-  // 利率を 0.05 (5%) に固定
-  const FIXED_RATE = 0.05;
-  const FIXED_REASON = "月次利子付与"; 
-
-  // メイン関数を呼び出し
-  return api_adminInterestOnBalance(String(getConfig_("ADMIN_PASS", "")), FIXED_RATE, FIXED_REASON);
+  _ensureCoreSheets_();
+  return api_phase2UserInterest(
+    String(getConfig_("ADMIN_PASS", "")),
+    5,
+    "週次利息（月曜日）"
+  );
 }
 
-function api_adminInterestOnBalance(adminPass, rate, reason) {
+function api_adminInterestOnBalance(adminPass, rate, reason, settleGovernment) {
   _assertAdminPassValue_(adminPass);
   // balance に対して利子を付けて balance に加算（=複利）
   return lockRun_(() => {
@@ -969,7 +969,17 @@ function api_adminInterestOnBalance(adminPass, rate, reason) {
       txSh.getRange(txSh.getLastRow() + 1, 1, rowsTx.length, rowsTx[0].length).setValues(rowsTx);
     }
 
-    return { at, rate, roundMode, countApplied, totalInterest };
+    let governmentBalance = null;
+    if (settleGovernment && totalInterest > 0) {
+      governmentBalance = _phase2GovernmentMove_(
+        -totalInterest,
+        "USER_INTEREST_OUT",
+        reason,
+        ""
+      );
+    }
+
+    return { at, rate, roundMode, countApplied, totalInterest, governmentBalance };
   });
 }
 function api_adminInterestOnShopBalance(adminPass, rate, reason){

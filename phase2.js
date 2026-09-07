@@ -108,8 +108,7 @@ function api_phase2UserInterest(adminPass,ratePercent,reason){
   _assertAdminPassValue_(adminPass);
   const rate=Number(ratePercent)/100;
   if(!Number.isFinite(rate)||rate<0||rate>1) throw new Error("利率は0〜100%で入力してください");
-  const result=api_adminInterestOnBalance(adminPass,rate,reason||"児童口座利息");
-  result.governmentBalance=_phase2GovernmentMove_(-result.totalInterest,"USER_INTEREST_OUT",reason||"児童口座利息","");
+  const result=api_adminInterestOnBalance(adminPass,rate,reason||"児童口座利息",true);
   return result;
 }
 
