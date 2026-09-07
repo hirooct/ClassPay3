@@ -387,7 +387,7 @@ async function loadPayOptions_(){
     userSelect.appendChild(opt);
   });
 
-  data.shops.forEach(s => {
+  (data.recipients || data.shops).forEach(s => {
     const opt = document.createElement("option");
     opt.value = s.shopId;
     opt.textContent = `${s.shopId}　${s.shopName}`;
@@ -458,7 +458,7 @@ async function pay(){
       <div class="muted">取引ID: <span class="mono">${escapeHtml_(r.txId)}</span></div>
       <hr>
       <div style="font-weight:900; color:#0f172a">あなた：${escapeHtml_(r.user.name)}（残高 ${escapeHtml_(r.user.balance)}）</div>
-      <div style="font-weight:900; color:#0f172a; margin-top:6px">会社：${escapeHtml_(r.shop.shopName)}（残高 ${escapeHtml_(r.shop.balance)}）</div>
+      <div style="font-weight:900; color:#0f172a; margin-top:6px">支払先：${escapeHtml_(r.shop.shopName)}（残高 ${escapeHtml_(r.shop.balance)}）</div>
     `;
 
     document.getElementById("pin").value = "";

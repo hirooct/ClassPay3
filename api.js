@@ -261,38 +261,52 @@ function api_pay(userId, pin, shopId, amount, note) {
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("金額が不正です");
 
     const payer = _assertPin_(userId, pin);
-    const shop = _findShop_(shopId);
-    if (!shop) throw new Error("店が見つかりません");
-    if (!shop.active) throw new Error("この店は無効です");
+    const isGovernment = shopId === "GOV";
+    const shop = isGovernment ? null : _findShop_(shopId);
+    if (!isGovernment && !shop) throw new Error("店が見つかりません");
+    if (shop && !shop.active) throw new Error("この店は無効です");
+    if (isGovernment) {
+      _getGovernmentAccount_();
+      _sheetByNameOrThrow_(SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger");
+    }
 
     if (payer.balance < amount) throw new Error("残高が足りません");
 
     const newUserBal = payer.balance - amount;
-    const newShopBal = shop.balance + amount;
+    const newShopBal = shop ? shop.balance + amount : 0;
 
     payer.sh.getRange(payer.row, payer.cBal).setValue(newUserBal);
-    shop.sh.getRange(shop.row, shop.cBal).setValue(newShopBal);
+    if (shop) shop.sh.getRange(shop.row, shop.cBal).setValue(newShopBal);
 
     const txId = uuid_();
     const at = _fmtJst_(new Date());
 
     _appendTx_({
       txId, at,
-      type: "PAY",
+      type: isGovernment ? "GOV_PAY" : "PAY",
       userId: payer.userId,
       userName: payer.name,
-      shopId: shop.shopId,
-      shopName: shop.shopName,
+      shopId: isGovernment ? "GOV" : shop.shopId,
+      shopName: isGovernment ? "政府" : shop.shopName,
       amount,
       status: "OK",
-      note
+      note: isGovernment ? (note || "権利料") : note
     });
+
+    const recipientBalance = isGovernment
+      ? _phase2GovernmentMove_(amount, "RIGHTS_FEE_IN", note || "権利料", txId)
+      : newShopBal;
 
     return {
       txId,
       at,
       user: { userId: payer.userId, name: payer.name, balance: newUserBal },
-      shop: { shopId: shop.shopId, shopName: shop.shopName, balance: newShopBal }
+      shop: {
+        shopId: isGovernment ? "GOV" : shop.shopId,
+        shopName: isGovernment ? "政府" : shop.shopName,
+        balance: recipientBalance,
+        isGovernment
+      }
     };
   });
 }
@@ -419,12 +433,14 @@ function api_balance(userId, pin, limit){
     if (!pin) throw new Error("PINを入力してください");
 
     const u = _assertPin_(userId, pin);
+    const membershipHistory = _membershipHistoryRows_(u.userId);
 
     return {
       userId: u.userId,
       name: u.name,
       balance: u.balance,
-      companies: _getCompaniesByUserId_(u.userId),
+      companies: membershipHistory.filter(x=>x.isActive).map(x=>({shopId:x.shopId,shopName:x.shopName,role:x.role})),
+      membershipHistory,
       tx: _getTxByUserId_(userId, limit), // ★ここをlimitに
     };
   });
@@ -1814,7 +1830,8 @@ function api_getActivePayOptions(){
 
   return {
     users: activeUsers,
-    shops: activeShops
+    shops: activeShops,
+    recipients: activeShops.concat([{shopId:"GOV",shopName:"政府（権利料など）",isGovernment:true}])
   };
 }
 
@@ -1878,8 +1895,9 @@ function _ensureSheetWithHeader_(name, header){
 /** 初回だけ手動実行するセットアップ */
 function setupClassPayPhase1(){
   const members = _ensureSheetWithHeader_(SHEETS.COMPANY_MEMBERS || "CompanyMembers", [
-    "shopId","userId","role","isActive","joinedAt"
+    "shopId","userId","role","isActive","joinedAt","leftAt","leaveReason","leftBy"
   ]);
+  if (typeof _ensureColumns_ === "function") _ensureColumns_(members,["shopId","userId","role","isActive","joinedAt","leftAt","leaveReason","leftBy"]);
   const apps = _ensureSheetWithHeader_(SHEETS.COMPANY_APPLICATIONS || "CompanyApplications", [
     "applicationId","at","companyName","presidentUserId","memberUserIds","companyPass","activity","status","reviewedAt","reviewNote","shopId"
   ]);
@@ -1981,6 +1999,43 @@ function _getCompaniesByUserId_(userId){
 function api_myCompanies(userId, pin){
   const u = _assertPin_(String(userId||"").trim().toUpperCase(), pin);
   return _getCompaniesByUserId_(u.userId);
+}
+
+function _membershipHistoryRows_(onlyUserId){
+  onlyUserId=String(onlyUserId||"").trim().toUpperCase();
+  const sh=_getCompanyMembersSheet_(),v=sh.getDataRange().getValues();
+  if(v.length<2)return [];
+  const m=_headerMap_(v[0]),ix=n=>m.idx(n),shopNames={},userNames={};
+  const sv=_getShopsSheet_().getDataRange().getValues();
+  if(sv.length>1){const sm=_headerMap_(sv[0]),cId=sm.idx("shopid"),cName=sm.idx("shopname"),cActive=sm.idx("isactive");sv.slice(1).forEach(r=>{const id=String(r[cId]||"").trim().toUpperCase();if(id)shopNames[id]={name:String(r[cName]||""),active:cActive<0?true:_isTrue_(r[cActive])};});}
+  const uv=_getUsersSheet_().getDataRange().getValues();
+  if(uv.length>1){const um=_headerMap_(uv[0]),cId=um.idx("userid"),cName=um.idx("name");uv.slice(1).forEach(r=>{const id=String(r[cId]||"").trim().toUpperCase();if(id)userNames[id]=String(r[cName]||"");});}
+  return v.slice(1).map((r,i)=>{
+    const userId=String(r[ix("userid")]||"").trim().toUpperCase();
+    if(!userId||(onlyUserId&&userId!==onlyUserId))return null;
+    const shopId=String(r[ix("shopid")]||"").trim().toUpperCase(),shop=shopNames[shopId]||{name:shopId,active:false};
+    return {rowNumber:i+2,shopId,shopName:shop.name,userId,userName:userNames[userId]||userId,role:String(r[ix("role")]||"MEMBER").trim().toUpperCase(),isActive:(ix("isactive")<0||_isTrue_(r[ix("isactive")]))&&shop.active,joinedAt:String(r[ix("joinedat")]||""),leftAt:ix("leftat")<0?"":String(r[ix("leftat")]||""),leaveReason:ix("leavereason")<0?"":String(r[ix("leavereason")]||""),leftBy:ix("leftby")<0?"":String(r[ix("leftby")]||"")};
+  }).filter(Boolean).sort((a,b)=>String(b.joinedAt).localeCompare(String(a.joinedAt)));
+}
+
+function api_myMembershipHistory(userId,pin){
+  const u=_assertPin_(String(userId||"").trim().toUpperCase(),pin);
+  return _membershipHistoryRows_(u.userId);
+}
+
+function api_leaveCompany(userId,pin,shopId,reason){
+  return lockRun_(()=>{
+    const u=_assertPin_(String(userId||"").trim().toUpperCase(),pin);
+    shopId=String(shopId||"").trim().toUpperCase();
+    const count=_endCompanyMemberRows_(shopId,u.userId,String(reason||"本人による退社").trim()||"本人による退社",u.userId,false);
+    if(!count)throw new Error("有効な所属が見つかりません");
+    return {ok:true,userId:u.userId,shopId};
+  });
+}
+
+function api_adminMembershipHistory(adminPass,userId){
+  _assertAdminPassValue_(adminPass);
+  return _membershipHistoryRows_(userId);
 }
 
 function _hasPresidentCompany_(userId){
@@ -2115,11 +2170,11 @@ function api_adminApproveCompanyApplication(adminPass, applicationId){
 
     const joinedAt=_fmtJst_(new Date());
     const memSh=_getCompanyMembersSheet_();
-    const rows=[[shopId,presidentUserId,"PRESIDENT",true,joinedAt]];
+    const rows=[[shopId,presidentUserId,"PRESIDENT"]];
     Array.from(new Set(memberIds.map(x=>String(x||"").trim().toUpperCase()).filter(Boolean)))
       .filter(id=>id!==presidentUserId)
-      .forEach(id=>rows.push([shopId,id,"MEMBER",true,joinedAt]));
-    if(rows.length) memSh.getRange(memSh.getLastRow()+1,1,rows.length,rows[0].length).setValues(rows);
+      .forEach(id=>rows.push([shopId,id,"MEMBER"]));
+    rows.forEach(r=>_appendCompanyMember_(r[0],r[1],r[2],joinedAt));
 
     const now=_fmtJst_(new Date());
     a.sh.getRange(a.row, idx("status")+1).setValue("APPROVED");

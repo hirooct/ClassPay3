@@ -58,7 +58,7 @@ function api_phase2Dashboard(adminPass){
     studentRanking:users.filter(u=>u.isActive)
       .slice().sort((a,b)=>b.balance-a.balance||a.userId.localeCompare(b.userId))
       .map((u,i)=>({rank:i+1,userId:u.userId,name:u.name,balance:u.balance})),
-    shops:api_listShops(),
+    shops:api_adminListAllShops(adminPass),
     ledger:api_phase2GovernmentLedger(adminPass,50)
   };
 }
@@ -75,6 +75,19 @@ function api_phase2GovernmentLedger(adminPass, limit){
     amount:Number(r[ix("amount")]||0),balanceAfter:Number(r[ix("balanceafter")]||0),
     referenceId:String(r[ix("referenceid")]||""),note:String(r[ix("note")]||"")
   }));
+}
+
+function api_adminMoneyFlow(adminPass,limit){
+  _assertAdminPassValue_(adminPass);
+  limit=Math.min(Math.max(Number(limit||100),1),300);
+  const users=api_adminListUsersWithPin(adminPass),shops=api_listShops(),government=_getGovernmentAccount_(),transactions=api_adminListTx(limit);
+  const byType={};
+  transactions.forEach(x=>{const type=String(x.type||"OTHER").toUpperCase();if(!byType[type])byType[type]={type,count:0,total:0};byType[type].count++;byType[type].total+=Number(x.amount||0);});
+  return {
+    summary:{userBalance:users.filter(x=>x.isActive).reduce((s,x)=>s+Number(x.balance||0),0),shopBalance:shops.reduce((s,x)=>s+Number(x.balance||0),0),governmentBalance:Number(government.balance||0),userCount:users.filter(x=>x.isActive).length,shopCount:shops.length},
+    byType:Object.keys(byType).map(k=>byType[k]).sort((a,b)=>b.count-a.count),
+    transactions
+  };
 }
 
 function api_submitCompanyApplicationV2(payload){

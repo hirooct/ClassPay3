@@ -8,7 +8,7 @@ function _ensureCoreSheets_(){
   _ensureColumns_(_ensureSheetWithHeader_(SHEETS.TX,["txId","at","type","userId","userName","shopId","shopName","amount","status","note","meta"]),["txId","at","type","userId","userName","shopId","shopName","amount","status","note","meta"]);
   _ensureColumns_(_ensureSheetWithHeader_(SHEETS.CONFIG,["key","value"]),["key","value"]);
   setupClassPayPhase2();
-  _ensureColumns_(_getCompanyMembersSheet_(),["shopId","userId","role","isActive","joinedAt"]);
+  _ensureColumns_(_getCompanyMembersSheet_(),["shopId","userId","role","isActive","joinedAt","leftAt","leaveReason","leftBy"]);
   _ensureColumns_(_getCompanyApplicationsSheet_(),["applicationId","at","companyName","presidentUserId","memberUserIds","companyPass","activity","status","reviewedAt","reviewNote","shopId"]);
   _ensureColumns_(_getGovernmentSheet_(),["accountId","accountName","balance","updatedAt"]);
   _ensureColumns_(_getCompanySnapshotsSheet_(),["snapshotAt","shopId","shopName","balance","previousBalance","growthAmount","growthRate","valueCreated"]);
@@ -103,9 +103,44 @@ function api_adminBulkUsers(adminPass,text,defaultBalance){
   return {count:results.filter(function(x){return x.ok;}).length,failed:results.filter(function(x){return !x.ok;}),results:results};
 }
 
-function _deactivateCompanyMembers_(shopId){
-  var sh=_getCompanyMembersSheet_(),v=sh.getDataRange().getValues();if(v.length<2)return;var m=_headerMap_(v[0]),cShop=m.idx("shopid"),cActive=m.idx("isactive");
-  for(var i=1;i<v.length;i++)if(String(v[i][cShop]||"").trim().toUpperCase()===shopId&&cActive>=0)sh.getRange(i+1,cActive+1).setValue(false);
+function _endCompanyMemberRows_(shopId,userId,reason,leftBy,allowPresident){
+  var sh=_getCompanyMembersSheet_(),v=sh.getDataRange().getValues();if(v.length<2)return 0;
+  var m=_headerMap_(v[0]),cShop=m.idx("shopid"),cUser=m.idx("userid"),cRole=m.idx("role"),cActive=m.idx("isactive"),cLeft=m.idx("leftat"),cReason=m.idx("leavereason"),cBy=m.idx("leftby"),count=0,at=_fmtJst_(new Date());
+  for(var i=1;i<v.length;i++){
+    if(String(v[i][cShop]||"").trim().toUpperCase()!==shopId)continue;
+    if(userId&&String(v[i][cUser]||"").trim().toUpperCase()!==userId)continue;
+    if(cActive>=0&&!_isTrue_(v[i][cActive]))continue;
+    if(!allowPresident&&String(v[i][cRole]||"").trim().toUpperCase()==="PRESIDENT")throw new Error("社長は先に別の児童へ変更するか、会社を停止してください");
+    if(cActive>=0)sh.getRange(i+1,cActive+1).setValue(false);
+    if(cLeft>=0)sh.getRange(i+1,cLeft+1).setValue(at);
+    if(cReason>=0)sh.getRange(i+1,cReason+1).setValue(String(reason||"退社"));
+    if(cBy>=0)sh.getRange(i+1,cBy+1).setValue(String(leftBy||""));
+    count++;
+  }
+  return count;
+}
+
+function _deactivateCompanyMembers_(shopId,reason,leftBy){
+  return _endCompanyMemberRows_(shopId,"",reason||"所属更新",leftBy||"ADMIN",true);
+}
+
+function _appendCompanyMember_(shopId,userId,role,joinedAt){
+  var sh=_getCompanyMembersSheet_();
+  _writeByHeader_(sh,0,{shopid:shopId,userid:userId,role:role,isactive:true,joinedat:joinedAt||_fmtJst_(new Date()),leftat:"",leavereason:"",leftby:""},["shopid","userid","role","isactive","joinedat"]);
+}
+
+function _reconcileCompanyMembers_(shopId,president,members){
+  var desired={};
+  if(president)desired[president]="PRESIDENT";
+  Array.from(new Set(members||[])).forEach(function(id){if(id&&id!==president)desired[id]="MEMBER";});
+  var sh=_getCompanyMembersSheet_(),v=sh.getDataRange().getValues(),m=_headerMap_(v[0]),cShop=m.idx("shopid"),cUser=m.idx("userid"),cRole=m.idx("role"),cActive=m.idx("isactive"),activeByUser={},kept={};
+  v.slice(1).forEach(function(r){
+    if(String(r[cShop]||"").trim().toUpperCase()!==shopId||(cActive>=0&&!_isTrue_(r[cActive])))return;
+    var id=String(r[cUser]||"").trim().toUpperCase(),role=String(r[cRole]||"MEMBER").trim().toUpperCase();
+    if(!activeByUser[id])activeByUser[id]=[];activeByUser[id].push(role);
+  });
+  Object.keys(activeByUser).forEach(function(id){var roles=activeByUser[id];if(desired[id]&&roles.length===1&&roles[0]===desired[id])kept[id]=true;else _endCompanyMemberRows_(shopId,id,"所属更新","ADMIN",true);});
+  Object.keys(desired).forEach(function(id){if(!kept[id])_appendCompanyMember_(shopId,id,desired[id],_fmtJst_(new Date()));});
 }
 
 function api_adminSaveCompany(adminPass,payload){
@@ -116,8 +151,32 @@ function api_adminSaveCompany(adminPass,payload){
   for(var i=1;i<v.length;i++)if(String(v[i][c]||"").trim().toUpperCase()===shopId){rowNo=i+1;break;}
   _writeByHeader_(sh,rowNo,{shopid:shopId,shopname:name,balance:balance,isactive:active,companypass:pass,stockactive:payload.stockActive!==false},["shopid","shopname","balance","isactive","companypass"]);
   var president=String(payload.presidentUserId||"").trim().toUpperCase(),members=(payload.memberUserIds||[]).map(function(x){return String(x||"").trim().toUpperCase();}).filter(Boolean);
-  if(president){if(!_findUser_(president))throw new Error("社長の児童が見つかりません");_deactivateCompanyMembers_(shopId);var at=_fmtJst_(new Date()),rows=[[shopId,president,"PRESIDENT",true,at]];Array.from(new Set(members)).filter(function(id){return id!==president;}).forEach(function(id){if(!_findUser_(id))throw new Error("社員が見つかりません："+id);rows.push([shopId,id,"MEMBER",true,at]);});var mem=_getCompanyMembersSheet_();mem.getRange(mem.getLastRow()+1,1,rows.length,5).setValues(rows);}
+  if(president&&!_findUser_(president))throw new Error("社長の児童が見つかりません");Array.from(new Set(members)).forEach(function(id){if(!_findUser_(id))throw new Error("社員が見つかりません："+id);});
+  if(active)_reconcileCompanyMembers_(shopId,president,members);else _deactivateCompanyMembers_(shopId,"会社停止","ADMIN");
   return {ok:true,shopId:shopId,updated:!!rowNo};
+}
+
+function api_adminDeleteCompany(adminPass,shopId,reason){
+  _assertAdminPassValue_(adminPass);
+  return lockRun_(function(){
+    shopId=String(shopId||"").trim().toUpperCase();reason=String(reason||"会社を停止").trim()||"会社を停止";
+    var s=_findShop_(shopId);if(!s)throw new Error("会社が見つかりません");
+    var sh=_getShopsSheet_(),v=sh.getDataRange().getValues(),m=_headerMap_(v[0]),cActive=m.idx("isactive");
+    if(cActive<0)throw new Error("Shopsヘッダに isActive が必要です");
+    sh.getRange(s.row,cActive+1).setValue(false);
+    var ended=_deactivateCompanyMembers_(shopId,reason,"ADMIN");
+    return {ok:true,shopId:shopId,endedMemberships:ended,message:"会社を停止しました。取引・株・所属履歴は保持されます"};
+  });
+}
+
+function api_adminLeaveCompany(adminPass,userId,shopId,reason){
+  _assertAdminPassValue_(adminPass);
+  return lockRun_(function(){
+    userId=String(userId||"").trim().toUpperCase();shopId=String(shopId||"").trim().toUpperCase();
+    var count=_endCompanyMemberRows_(shopId,userId,reason||"管理者による退社","ADMIN",false);
+    if(!count)throw new Error("有効な所属が見つかりません");
+    return {ok:true,userId:userId,shopId:shopId};
+  });
 }
 
 function api_adminCredentials(adminPass){
@@ -128,8 +187,14 @@ function api_adminCredentials(adminPass){
 
 function api_adminCompanyDetail(adminPass,shopId){
   _assertAdminPassValue_(adminPass);shopId=String(shopId||"").trim().toUpperCase();var s=_findShop_(shopId);if(!s)throw new Error("会社が見つかりません");
-  var members=api_companyMembers(shopId),president=members.find(function(x){return x.role==="PRESIDENT";});
+  var members=_membershipHistoryRows_("").filter(function(x){return x.shopId===shopId&&x.isActive;}),president=members.find(function(x){return x.role==="PRESIDENT";});
   return {shopId:s.shopId,shopName:s.shopName,balance:s.balance,isActive:s.active,companyPass:s.companyPass,presidentUserId:president?president.userId:"",memberUserIds:members.filter(function(x){return x.role!=="PRESIDENT";}).map(function(x){return x.userId;})};
+}
+
+function api_adminListAllShops(adminPass){
+  _assertAdminPassValue_(adminPass);var sh=_getShopsSheet_(),v=sh.getDataRange().getValues();if(v.length<2)return [];
+  var m=_headerMap_(v[0]),cId=m.idx("shopid"),cName=m.idx("shopname"),cBal=m.idx("balance"),cActive=m.idx("isactive");
+  return v.slice(1).map(function(r){var id=String(r[cId]||"").trim().toUpperCase();return id?{shopId:id,shopName:String(r[cName]||""),balance:Number(r[cBal]||0),active:cActive<0?true:_isTrue_(r[cActive])}:null;}).filter(Boolean).sort(function(a,b){return (a.active===b.active?0:(a.active?-1:1))||a.shopId.localeCompare(b.shopId);});
 }
 
 function api_adminChangeAdminPassV2(adminPass,newPass,confirmPass){
