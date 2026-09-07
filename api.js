@@ -441,6 +441,7 @@ function api_balance(userId, pin, limit){
       balance: u.balance,
       companies: membershipHistory.filter(x=>x.isActive).map(x=>({shopId:x.shopId,shopName:x.shopName,role:x.role})),
       membershipHistory,
+      retirementApplications: _retirementApplicationRows_({userId:u.userId}),
       tx: _getTxByUserId_(userId, limit), // ★ここをlimitに
     };
   });
@@ -2024,13 +2025,75 @@ function api_myMembershipHistory(userId,pin){
 }
 
 function api_leaveCompany(userId,pin,shopId,reason){
+  return api_submitRetirementApplication({userId,pin,shopId,reason});
+}
+
+function _getRetirementApplicationsSheet_(createIfMissing){
+  const name=SHEETS.RETIREMENT_APPLICATIONS||"RetirementApplications";
+  let sh=SpreadsheetApp.getActive().getSheetByName(name);
+  if(!sh&&createIfMissing)sh=_ensureSheetWithHeader_(name,["applicationId","submittedAt","shopId","shopName","userId","userName","reason","status","reviewedAt","reviewNote","reviewedBy","governmentStatus"]);
+  if(sh&&typeof _ensureColumns_==="function")_ensureColumns_(sh,["applicationId","submittedAt","shopId","shopName","userId","userName","reason","status","reviewedAt","reviewNote","reviewedBy","governmentStatus"]);
+  return sh;
+}
+
+function _retirementApplicationRows_(filter){
+  filter=filter||{};const sh=_getRetirementApplicationsSheet_(false);if(!sh)return [];
+  const v=sh.getDataRange().getValues();if(v.length<2)return [];
+  const m=_headerMap_(v[0]),ix=n=>m.idx(n),userId=String(filter.userId||"").trim().toUpperCase(),shopId=String(filter.shopId||"").trim().toUpperCase(),status=String(filter.status||"").trim().toUpperCase();
+  return v.slice(1).map((r,i)=>({rowNumber:i+2,applicationId:String(r[ix("applicationid")]||""),submittedAt:String(r[ix("submittedat")]||""),shopId:String(r[ix("shopid")]||"").trim().toUpperCase(),shopName:String(r[ix("shopname")]||""),userId:String(r[ix("userid")]||"").trim().toUpperCase(),userName:String(r[ix("username")]||""),reason:String(r[ix("reason")]||""),status:String(r[ix("status")]||"").trim().toUpperCase(),reviewedAt:String(r[ix("reviewedat")]||""),reviewNote:String(r[ix("reviewnote")]||""),reviewedBy:String(r[ix("reviewedby")]||""),governmentStatus:String(r[ix("governmentstatus")]||"RECEIVED")})).filter(x=>x.applicationId&&(!userId||x.userId===userId)&&(!shopId||x.shopId===shopId)&&(!status||x.status===status)).reverse();
+}
+
+function _activeCompanyMembership_(shopId,userId){
+  const sh=_getCompanyMembersSheet_(),v=sh.getDataRange().getValues();if(v.length<2)return null;
+  const m=_headerMap_(v[0]),cShop=m.idx("shopid"),cUser=m.idx("userid"),cRole=m.idx("role"),cActive=m.idx("isactive");
+  for(let i=1;i<v.length;i++)if(String(v[i][cShop]||"").trim().toUpperCase()===shopId&&String(v[i][cUser]||"").trim().toUpperCase()===userId&&(cActive<0||_isTrue_(v[i][cActive])))return {row:i+1,role:String(v[i][cRole]||"MEMBER").trim().toUpperCase()};
+  return null;
+}
+
+function api_submitRetirementApplication(payload){
   return lockRun_(()=>{
-    const u=_assertPin_(String(userId||"").trim().toUpperCase(),pin);
-    shopId=String(shopId||"").trim().toUpperCase();
-    const count=_endCompanyMemberRows_(shopId,u.userId,String(reason||"本人による退社").trim()||"本人による退社",u.userId,false);
-    if(!count)throw new Error("有効な所属が見つかりません");
-    return {ok:true,userId:u.userId,shopId};
+    payload=payload||{};const userId=String(payload.userId||"").trim().toUpperCase(),shopId=String(payload.shopId||"").trim().toUpperCase(),reason=String(payload.reason||"").trim();
+    const u=_assertPin_(userId,payload.pin),shop=_findShop_(shopId);if(!shop||!shop.active)throw new Error("会社が見つからないか、停止中です");
+    const membership=_activeCompanyMembership_(shopId,u.userId);if(!membership)throw new Error("この会社には所属していません");if(membership.role==="PRESIDENT")throw new Error("社長は退職届を提出できません。先に先生へ社長変更を相談してください");
+    if(!reason)throw new Error("退職理由を入力してください");if(reason.length>300)throw new Error("退職理由は300文字以内で入力してください");
+    if(_retirementApplicationRows_({userId:u.userId,shopId,status:"PENDING"}).length)throw new Error("この会社への退職届はすでに審査中です");
+    const sh=_getRetirementApplicationsSheet_(true),applicationId="RET-"+Utilities.formatDate(new Date(),"Asia/Tokyo","yyyyMMdd-HHmmss")+"-"+uuid_().slice(0,6).toUpperCase(),at=_fmtJst_(new Date());
+    _writeByHeader_(sh,0,{applicationid:applicationId,submittedat:at,shopid:shop.shopId,shopname:shop.shopName,userid:u.userId,username:u.name,reason,status:"PENDING",reviewedat:"",reviewnote:"",reviewedby:"",governmentstatus:"RECEIVED"},["applicationid","submittedat","shopid","userid","reason","status"]);
+    return {ok:true,applicationId,submittedAt:at,status:"PENDING",message:"退職届を会社へ提出しました"};
   });
+}
+
+function api_myRetirementApplications(userId,pin){
+  const u=_assertPin_(String(userId||"").trim().toUpperCase(),pin);return _retirementApplicationRows_({userId:u.userId});
+}
+
+function _assertCompanyPassForRetirement_(shopId,companyPass){
+  const shop=_findShop_(shopId);if(!shop||!shop.active)throw new Error("会社が見つからないか、停止中です");
+  if(!companyPass||String(companyPass).trim()!==shop.companyPass)throw new Error("会社PASSが違います");return shop;
+}
+
+function api_companyRetirementApplications(payload){
+  payload=payload||{};const shopId=String(payload.shopId||"").trim().toUpperCase();_assertCompanyPassForRetirement_(shopId,String(payload.companyPass||"").trim());
+  return _retirementApplicationRows_({shopId,status:payload.status===undefined?"PENDING":payload.status});
+}
+
+function api_companyReviewRetirement(payload){
+  return lockRun_(()=>{
+    payload=payload||{};const shopId=String(payload.shopId||"").trim().toUpperCase(),applicationId=String(payload.applicationId||"").trim(),decision=String(payload.decision||"").trim().toUpperCase(),reviewNote=String(payload.reviewNote||"").trim();
+    _assertCompanyPassForRetirement_(shopId,String(payload.companyPass||"").trim());if(!["APPROVED","REJECTED"].includes(decision))throw new Error("承認または却下を選択してください");if(decision==="REJECTED"&&!reviewNote)throw new Error("却下理由を入力してください");
+    const rows=_retirementApplicationRows_({shopId}),app=rows.find(x=>x.applicationId===applicationId);if(!app)throw new Error("退職届が見つかりません");if(app.status!=="PENDING")throw new Error("この退職届はすでに処理済みです");
+    let reviewer="PRESIDENT";const histories=_membershipHistoryRows_("");const president=histories.find(x=>x.shopId===shopId&&x.isActive&&x.role==="PRESIDENT");if(president)reviewer=president.userId+" "+president.userName;
+    if(decision==="APPROVED"){
+      const count=_endCompanyMemberRows_(shopId,app.userId,"退職届承認："+app.reason,reviewer,false);if(!count)throw new Error("申請者の有効な所属が見つかりません");
+    }
+    const sh=_getRetirementApplicationsSheet_(false),v=sh.getDataRange().getValues(),m=_headerMap_(v[0]);
+    sh.getRange(app.rowNumber,m.idx("status")+1).setValue(decision);sh.getRange(app.rowNumber,m.idx("reviewedat")+1).setValue(_fmtJst_(new Date()));sh.getRange(app.rowNumber,m.idx("reviewnote")+1).setValue(reviewNote);sh.getRange(app.rowNumber,m.idx("reviewedby")+1).setValue(reviewer);sh.getRange(app.rowNumber,m.idx("governmentstatus")+1).setValue("RECEIVED");
+    return {ok:true,applicationId,status:decision,message:decision==="APPROVED"?"退職を承認しました":"退職届を却下しました"};
+  });
+}
+
+function api_adminRetirementApplications(adminPass,status){
+  _assertAdminPassValue_(adminPass);return _retirementApplicationRows_({status});
 }
 
 function api_adminMembershipHistory(adminPass,userId){

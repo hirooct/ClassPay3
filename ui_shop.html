@@ -91,7 +91,7 @@ body{
   border:1px solid #dbeafe;
   box-shadow: 0 14px 28px rgba(30,64,175,.12);
 }
-.lookupShell{background:linear-gradient(145deg,#ffffff 55%,#eff6ff);overflow:hidden}.lookupHero{display:flex;align-items:center;gap:14px;margin-bottom:16px}.lookupHeroIcon{width:58px;height:58px;display:grid;place-items:center;border-radius:18px;background:linear-gradient(135deg,#2563eb,#1e3a8a);color:#fff;font-size:27px;box-shadow:0 12px 26px rgba(37,99,235,.25)}.shop-list-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}.shop-list-item{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #dbeafe;border-radius:16px;background:#fff;cursor:pointer;transition:.16s ease}.shop-list-item:hover{transform:translateY(-2px);border-color:#60a5fa;box-shadow:0 10px 20px rgba(30,64,175,.1)}.shop-list-id{min-width:58px;padding:7px;border-radius:10px;background:#e0ecff;color:#1e40af;text-align:center;font-weight:900}.companyHero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:20px;border-radius:18px;background:linear-gradient(135deg,#1d4ed8,#1e3a8a);color:#fff}.companyHero .shop-title{color:#fff;font-size:25px}.companyHero .shop-id{color:#dbeafe}.companyBalance{text-align:right}.companyBalance .label{font-size:12px;font-weight:800;color:#bfdbfe}.companyBalance .amount{color:#fff;font-size:34px}.companyBody{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.8fr);gap:14px;margin-top:14px}.payLinkCard{padding:16px;border-radius:16px;background:#f8fbff;border:1px solid #dbeafe}
+.lookupShell{background:linear-gradient(145deg,#ffffff 55%,#eff6ff);overflow:hidden}.lookupHero{display:flex;align-items:center;gap:14px;margin-bottom:16px}.lookupHeroIcon{width:58px;height:58px;display:grid;place-items:center;border-radius:18px;background:linear-gradient(135deg,#2563eb,#1e3a8a);color:#fff;font-size:27px;box-shadow:0 12px 26px rgba(37,99,235,.25)}.shop-list-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}.shop-list-item{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #dbeafe;border-radius:16px;background:#fff;cursor:pointer;transition:.16s ease}.shop-list-item:hover{transform:translateY(-2px);border-color:#60a5fa;box-shadow:0 10px 20px rgba(30,64,175,.1)}.shop-list-id{min-width:58px;padding:7px;border-radius:10px;background:#e0ecff;color:#1e40af;text-align:center;font-weight:900}.companyHero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:20px;border-radius:18px;background:linear-gradient(135deg,#1d4ed8,#1e3a8a);color:#fff}.companyHero .shop-title{color:#fff;font-size:25px}.companyHero .shop-id{color:#dbeafe}.companyBalance{text-align:right}.companyBalance .label{font-size:12px;font-weight:800;color:#bfdbfe}.companyBalance .amount{color:#fff;font-size:34px}.companyBody{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.8fr);gap:14px;margin-top:14px}.payLinkCard{padding:16px;border-radius:16px;background:#f8fbff;border:1px solid #dbeafe}.retirementItem{padding:12px;margin-top:10px;border:1px solid #dbeafe;border-radius:14px;background:#f8fafc}.retirementStatus{display:inline-block;padding:4px 8px;border-radius:999px;background:#e0ecff;color:#1e40af;font-size:12px;font-weight:900}.retirementActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.retirementActions .btn{flex:1;min-width:110px}.retirementActions .reject{background:#fff1f2;color:#be123c;border-color:#fecdd3}
 .card h1{
   margin:0 0 6px 0;
   font-size:22px;
@@ -663,6 +663,23 @@ async function salarySend_(shopId){
   }
 }
 
+async function renderRetirementCard_(shopId){
+  const area=document.getElementById("retirementArea");if(!area)return;
+  area.innerHTML=`<details class="card" style="margin-top:14px"><summary><span class="sumLeft"><span class="shop-title" style="margin:0">📨 退職届の受領・審査</span><span class="muted" style="font-size:12px">（社長用）</span></span><span class="chev">⌄</span></summary><div style="margin-top:12px"><p class="muted">会社PASSを入力すると、会社へ提出された退職届と過去の審査結果を確認できます。</p><label>会社PASS</label><input id="retirementPass" type="password" class="mono" placeholder="PASSを入力"><div class="row" style="margin-top:10px"><a href="#" class="btn primary" id="btnLoadRetirements">退職届を確認</a></div><div id="retirementRows"></div><div id="retirementMsg"></div></div></details>`;
+  document.getElementById("btnLoadRetirements").addEventListener("click",async e=>{e.preventDefault();await loadRetirements_(shopId);});
+}
+
+async function loadRetirements_(shopId){
+  const pass=(document.getElementById("retirementPass")?.value||"").trim(),box=document.getElementById("retirementRows"),msg=document.getElementById("retirementMsg");
+  try{if(!pass)throw new Error("会社PASSを入力してください");box.innerHTML='<p class="muted" style="margin-top:10px">読み込み中...</p>';msg.innerHTML="";const rows=await call("api_companyRetirementApplications",{shopId,companyPass:pass,status:""}),labels={PENDING:"未審査",APPROVED:"承認済み",REJECTED:"却下"};box.innerHTML=rows.length?rows.map(x=>`<div class="retirementItem"><div><b>${escapeHtml_(x.userName)}（${escapeHtml_(x.userId)}）</b> <span class="retirementStatus">${escapeHtml_(labels[x.status]||x.status)}</span></div><div class="muted" style="margin-top:6px">提出：${escapeHtml_(x.submittedAt)}<br>退職理由：${escapeHtml_(x.reason)}${x.reviewedAt?'<br>審査：'+escapeHtml_(x.reviewedAt)+(x.reviewNote?'／コメント：'+escapeHtml_(x.reviewNote):''):''}</div>${x.status==='PENDING'?`<div class="retirementActions"><a href="#" class="btn primary" onclick="reviewRetirement_(event,'${escapeHtml_(shopId)}','${escapeHtml_(x.applicationId)}','APPROVED')">承認する</a><a href="#" class="btn reject" onclick="reviewRetirement_(event,'${escapeHtml_(shopId)}','${escapeHtml_(x.applicationId)}','REJECTED')">却下する</a></div>`:''}</div>`).join(""):'<p class="muted" style="margin-top:12px">提出された退職届はありません。</p>';}catch(err){box.innerHTML="";msg.innerHTML=`<p class="err">${escapeHtml_(err.message||err)}</p>`;}
+}
+
+async function reviewRetirement_(event,shopId,applicationId,decision){
+  event.preventDefault();const pass=(document.getElementById("retirementPass")?.value||"").trim();let reviewNote="";
+  if(decision==="REJECTED"){reviewNote=prompt("却下理由を入力してください")||"";if(!reviewNote.trim())return;}else{reviewNote=prompt("本人へのコメント（任意）","")||"";if(!confirm("この退職を承認しますか？承認すると所属が終了します。"))return;}
+  try{const r=await call("api_companyReviewRetirement",{shopId,companyPass:pass,applicationId,decision,reviewNote});document.getElementById("retirementMsg").innerHTML=`<p class="ok">${escapeHtml_(r.message)}</p>`;await loadRetirements_(shopId);await renderSalaryCard_(shopId);}catch(err){document.getElementById("retirementMsg").innerHTML=`<p class="err">${escapeHtml_(err.message||err)}</p>`;}
+}
+
 document.getElementById("btnLookup").addEventListener("click", async (e)=>{
   e.preventDefault();
   clearMsg();
@@ -687,11 +704,12 @@ document.getElementById("btnLookup").addEventListener("click", async (e)=>{
     document.getElementById("resultArea").innerHTML = `
       <div class="card shop-card">
         <div class="companyHero"><div><div class="shop-title">${escapeHtml_(info.shopName)} <span class="shop-id">${escapeHtml_(info.shopId)}</span></div><div style="margin-top:7px;color:#dbeafe;font-size:13px">ClassPay 会社アカウント</div></div><div class="companyBalance"><div class="label">現在の残高</div><div class="amount mono"><span id="shopBalance">${escapeHtml_(info.balance)}</span> <small>Pay</small></div></div></div>
-        <div class="companyBody"><div class="payLinkCard"><div class="shop-title">💳 支払いを受け取る</div><p class="muted" style="margin-top:7px">下の専用ページを開くか、児童へ共有してください。</p><div class="mono url" style="margin-top:10px"><a href="${escapeHtml_(payUrl)}">${escapeHtml_(payUrl)}</a></div><div class="row" style="margin-top:12px"><a class="btn primary" href="${escapeHtml_(payUrl)}">支払いページを開く</a></div></div><div id="salaryArea"></div></div>
+        <div class="companyBody"><div class="payLinkCard"><div class="shop-title">💳 支払いを受け取る</div><p class="muted" style="margin-top:7px">下の専用ページを開くか、児童へ共有してください。</p><div class="mono url" style="margin-top:10px"><a href="${escapeHtml_(payUrl)}">${escapeHtml_(payUrl)}</a></div><div class="row" style="margin-top:12px"><a class="btn primary" href="${escapeHtml_(payUrl)}">支払いページを開く</a></div></div><div id="salaryArea"></div></div><div id="retirementArea"></div>
       </div>
     `;
 
     await renderSalaryCard_(info.shopId);
+    await renderRetirementCard_(info.shopId);
 
   }catch(err){
     showErr(err);

@@ -10,6 +10,7 @@ function _ensureCoreSheets_(){
   setupClassPayPhase2();
   _ensureColumns_(_getCompanyMembersSheet_(),["shopId","userId","role","isActive","joinedAt","leftAt","leaveReason","leftBy"]);
   _ensureColumns_(_getCompanyApplicationsSheet_(),["applicationId","at","companyName","presidentUserId","memberUserIds","companyPass","activity","status","reviewedAt","reviewNote","shopId"]);
+  _ensureColumns_(_ensureSheetWithHeader_(SHEETS.RETIREMENT_APPLICATIONS||"RetirementApplications",["applicationId","submittedAt","shopId","shopName","userId","userName","reason","status","reviewedAt","reviewNote","reviewedBy","governmentStatus"]),["applicationId","submittedAt","shopId","shopName","userId","userName","reason","status","reviewedAt","reviewNote","reviewedBy","governmentStatus"]);
   _ensureColumns_(_getGovernmentSheet_(),["accountId","accountName","balance","updatedAt"]);
   _ensureColumns_(_getCompanySnapshotsSheet_(),["snapshotAt","shopId","shopName","balance","previousBalance","growthAmount","growthRate","valueCreated"]);
   _ensureColumns_(SpreadsheetApp.getActive().getSheetByName(SHEETS.HOLDINGS||"Holdings"),["userId","shopId","shares","updatedAt"]);
@@ -41,7 +42,7 @@ function _setConfigValue_(key,value){
 function api_setupStatus(){
   var ss=SpreadsheetApp.getActive(), config=ss.getSheetByName(SHEETS.CONFIG);
   var pass=config ? String(getConfig_("ADMIN_PASS","")).trim() : "";
-  return {initialized:!!pass,appName:config?String(getConfig_("APP_NAME","ClassPay")):"ClassPay",missing:["Users","Shops","Tx","Config","Holdings","CompanyMembers","CompanyApplications","Government","CompanySnapshots","GovernmentLedger"].filter(function(n){return !ss.getSheetByName(n);})};
+  return {initialized:!!pass,appName:config?String(getConfig_("APP_NAME","ClassPay")):"ClassPay",missing:["Users","Shops","Tx","Config","Holdings","CompanyMembers","CompanyApplications","RetirementApplications","Government","CompanySnapshots","GovernmentLedger"].filter(function(n){return !ss.getSheetByName(n);})};
 }
 
 /** URLを受け取った人が先に初期化しないよう、公開前に教師が直ちに設定する一度限りの処理 */
