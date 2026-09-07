@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+/* ===== 全画面基本 ===== */
+html, body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+}
+
+body{
+  min-height:100svh;
+  background: linear-gradient(180deg, #f5f9ff, #eef3fb);
+  color:#1f2937;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont;
+}
+
+/* ===== POS全体 ===== */
+.pos{
+  min-height:100svh;
+  display:flex;
+  flex-direction:column;
+}
+
+/* ===== ヘッダー ===== */
+.posHeader{
+  position:sticky;
+  top:0;
+  z-index:10;
+
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+
+  padding: calc(14px + env(safe-area-inset-top)) 14px 14px;
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(12px);
+  border-bottom:1px solid #dbeafe;
+
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width:0;
+}
+
+.logo{
+  width:44px;
+  height:44px;
+  border-radius:16px;
+  display:grid;
+  place-items:center;
+  background:#e0ecff;
+  box-shadow: 0 8px 18px rgba(30,64,175,.18);
+  font-size:22px;
+}
+
+.title{
+  font-size:22px;
+  font-weight:900;
+  color:#1e3a8a;
+}
+
+.sub{
+  font-size:12px;
+  color:#475569;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:55vw;
+}
+
+.status{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-shrink:0;
+}
+
+.pill{
+  font-size:12px;
+  font-weight:800;
+  padding:8px 12px;
+  border-radius:999px;
+  background:#e0ecff;
+  color:#1e40af;
+  border:1px solid #bfdbfe;
+}
+
+.time{
+  font-size:16px;
+  font-weight:900;
+  color:#1f2937;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== メイン ===== */
+.posMain{
+  flex:1;
+  padding:14px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ===== タイルグリッド（2列固定） ===== */
+.grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:20px;
+}
+
+/* ===== タイル ===== */
+.tile{
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  box-sizing:border-box;
+
+  text-decoration:none;
+  color:#1f2937;
+  border-radius:20px;
+  padding:22px;
+  background:#ffffff;
+  border:1px solid #dbeafe;
+  box-shadow: 0 14px 28px rgba(30,64,175,.15);
+  min-height:160px;
+  touch-action: manipulation;
+}
+
+.tile:active{ transform: scale(.99); }
+
+.tile .icon{
+  height:44px;
+  display:flex;
+  align-items:center;
+  font-size:32px;
+  margin-bottom:10px;
+}
+
+.tile .label{
+  font-size:22px;
+  font-weight:900;
+  color:#1e3a8a;
+  white-space: nowrap;
+  overflow:hidden;
+  text-overflow: ellipsis;
+  line-height:1.15;
+}
+
+.tile .desc{
+  margin-top:8px;
+  font-size:14px;
+  color:#475569;
+  white-space: nowrap;
+  overflow:hidden;
+  text-overflow: ellipsis;
+}
+
+.tile.primary{
+  background: linear-gradient(180deg, #e0ecff, #f4f8ff);
+  border-color:#93c5fd;
+}
+.tile.primary .icon{ color:#2563eb; }
+
+.tile.danger{
+  background: linear-gradient(180deg, #fee2e2, #fff5f5);
+  border-color:#fca5a5;
+}
+.tile.danger .icon{ color:#dc2626; }
+
+/* ===== クイック起動 ===== */
+.pad{
+  border-radius:20px;
+  padding:18px;
+  background:#ffffff;
+  border:1px solid #dbeafe;
+  box-shadow: 0 10px 22px rgba(30,64,175,.12);
+}
+
+.padTitle{
+  font-size:16px;
+  font-weight:900;
+  color:#1e3a8a;
+  margin-bottom:12px;
+}
+
+.padRow{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap:12px;
+}
+
+.kbtn{
+  border:0;
+  border-radius:16px;
+  padding:18px 10px;
+  font-size:16px;
+  font-weight:900;
+  background:#e0ecff;
+  color:#1e40af;
+  box-shadow: 0 8px 18px rgba(30,64,175,.18);
+
+  white-space: nowrap;
+  overflow:hidden;
+  text-overflow: ellipsis;
+}
+
+.kbtn:active{ transform: scale(.98); }
+
+.kbtnDanger{
+  background:#fee2e2;
+  color:#b91c1c;
+}
+
+.hint{
+  margin-top:10px;
+  font-size:12px;
+  color:#64748b;
+}
+
+/* ===== ローディング（全画面） ===== */
+.loader{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  background: rgba(245,249,255,.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity:0;
+  pointer-events:none;
+  transition: opacity .18s ease;
+}
+
+.loader.show{
+  opacity:1;
+  pointer-events:auto;
+}
+
+.loaderBox{
+  width:min(520px, 92vw);
+  border-radius:22px;
+  background: rgba(255,255,255,.92);
+  border:1px solid #dbeafe;
+  box-shadow: 0 18px 44px rgba(30,64,175,.18);
+  padding:18px 18px 16px;
+}
+
+.loaderRow{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.spinner{
+  width:34px;
+  height:34px;
+  border-radius:999px;
+  border:4px solid #bfdbfe;
+  border-top-color:#2563eb;
+  animation: spin .8s linear infinite;
+  flex:0 0 auto;
+}
+
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+.loaderTitle{
+  font-size:15px;
+  font-weight:900;
+  color:#1e3a8a;
+  line-height:1.2;
+}
+
+.loaderSub{
+  margin-top:6px;
+  font-size:12px;
+  color:#64748b;
+}
+
+.skel{
+  margin-top:12px;
+  height:10px;
+  border-radius:999px;
+  background: linear-gradient(90deg, #eef3fb, #e0ecff, #eef3fb);
+  background-size: 200% 100%;
+  animation: shimmer 1.1s linear infinite;
+}
+@keyframes shimmer{
+  0%{ background-position: 0% 0; }
+  100%{ background-position: 200% 0; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="loader" id="loader" aria-hidden="true">
+  <div class="loaderBox">
+    <div class="loaderRow">
+      <div class="spinner" aria-label="loading"></div>
+      <div style="min-width:0">
+        <div class="loaderTitle" id="loaderTitle">読み込み中…</div>
+        <div class="loaderSub" id="loaderSub">しばらくお待ちください</div>
+      </div>
+    </div>
+    <div class="skel"></div>
+    <div class="skel" style="width:78%"></div>
+  </div>
+</div>
+
+<div class="pos">
+
+  <header class="posHeader">
+    <div class="brand">
+      <div class="logo">💎</div>
+      <div style="min-width:0">
+        <div class="title">ClassPay</div>
+        <div class="sub">学級内通貨のデジタル決済　クラスペイ</div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="pill">POS HOME</div>
+      <div class="time" id="nowTime">--:--</div>
+    </div>
+  </header>
+
+  <main class="posMain">
+
+    <section class="grid">
+      <a class="tile primary" id="payLink">
+        <div class="icon">💳</div>
+        <div class="label">支払い</div>
+        <div class="desc">デジタル決済で支払う</div>
+      </a>
+
+      <a class="tile" id="shop">
+        <div class="icon">🏪</div>
+        <div class="label">会社（係）</div>
+        <div class="desc">照会・給与</div>
+      </a>
+
+      <a class="tile" id="balance">
+        <div class="icon">👦</div>
+        <div class="label">残高確認</div>
+        <div class="desc">残高・所属会社・会社設立申請</div>
+      </a>
+
+      <a class="tile danger" id="admin">
+        <div class="icon">👩‍🏫</div>
+        <div class="label">管理（先生）</div>
+        <div class="desc">申請承認・政府会計・ランキング</div>
+      </a>
+    </section>
+
+    <section class="pad">
+      <div class="padTitle">クイック起動</div>
+      <div class="padRow">
+        <button class="kbtn" onclick="go('pay')">支払い</button>
+        <button class="kbtn" onclick="go('shop')">会社</button>
+        <button class="kbtn" onclick="go('balance')">残高</button>
+        <button class="kbtn kbtnDanger" onclick="go('admin')">先生</button>
+      </div>
+      <div class="hint">※ タイル／ボタンどちらからでも操作できます</div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+let BASE = "";
+
+const loaderEl = document.getElementById("loader");
+const loaderTitleEl = document.getElementById("loaderTitle");
+const loaderSubEl = document.getElementById("loaderSub");
+
+function showLoader(title, sub){
+  if(title) loaderTitleEl.textContent = title;
+  if(sub)   loaderSubEl.textContent = sub;
+  loaderEl.classList.add("show");
+  loaderEl.setAttribute("aria-hidden","false");
+}
+
+function hideLoader(){
+  loaderEl.classList.remove("show");
+  loaderEl.setAttribute("aria-hidden","true");
+}
+
+function buildUrl(p){
+  return BASE + "?p=" + encodeURIComponent(p);
+}
+
+function applyLinks(){
+  document.getElementById("payLink").href = buildUrl("pay");
+  document.getElementById("shop").href = buildUrl("shop");
+  document.getElementById("balance").href = buildUrl("balance");
+  document.getElementById("admin").href = buildUrl("admin");
+}
+
+function go(p){
+  if(!BASE){
+    alert("設定を読み込み中です。少し待ってください。");
+    return;
+  }
+  showLoader("画面を切り替えています…", "通信中です");
+  setTimeout(()=> {
+    location.href = buildUrl(p);
+  }, 120);
+}
+
+function bindLinkLoaders(){
+  document.querySelectorAll("a.tile").forEach(a=>{
+    a.addEventListener("click", (ev)=>{
+      const href = a.getAttribute("href");
+      if(!href) return;
+      ev.preventDefault();
+      showLoader("画面を切り替えています…", "通信中です");
+      setTimeout(()=> location.href = href, 120);
+    }, {passive:false});
+  });
+}
+
+function tick(){
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2,"0");
+  const mm = String(d.getMinutes()).padStart(2,"0");
+  document.getElementById("nowTime").textContent = `${hh}:${mm}`;
+}
+tick();
+setInterval(tick, 1000);
+
+showLoader("ClassPay を起動中…", "設定を読み込んでいます");
+
+google.script.run
+  .withSuccessHandler(function(baseUrl){
+    BASE = String(baseUrl || "").trim();
+
+    if(!BASE){
+      showLoader("設定の読み込みに失敗しました", "BASE_URL が空です");
+      return;
+    }
+
+    BASE = BASE.replace(/\?p=.*$/, "");
+    BASE = BASE.replace(/\?$/, "");
+    BASE = BASE.replace(/\/$/, "");
+
+    applyLinks();
+    bindLinkLoaders();
+
+    setTimeout(hideLoader, 180);
+  })
+  .withFailureHandler(function(err){
+    console.error(err);
+    showLoader("設定の読み込みに失敗しました", "Configシートの BASE_URL を確認してください");
+  })
+  .getBaseUrlForClient();
+
+window.addEventListener("pageshow", ()=> hideLoader());
+</script>
+
+</body>
+</html>
