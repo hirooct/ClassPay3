@@ -1921,6 +1921,24 @@ function api_adminListUsersWithPin(adminPass){
   const cUserId = m.idx("userid"), cName=m.idx("name"), cBal=m.idx("balance"), cActive=m.idx("isactive"), cPin=m.idx("pin");
   if (cUserId<0 || cName<0 || cBal<0 || cPin<0) throw new Error("Usersヘッダを確認してください");
 
+  // 所属会社は児童ごとにシートを再読込せず、最初に一括で索引化する。
+  const shopMap = {};
+  api_listShops().forEach(s => { shopMap[s.shopId] = s; });
+  const companyMap = {};
+  const membersSh = _getCompanyMembersSheet_();
+  const members = membersSh.getDataRange().getValues();
+  if (members.length > 1) {
+    const mm = _headerMap_(members[0]);
+    const cMShop=mm.idx("shopid"), cMUser=mm.idx("userid"), cMRole=mm.idx("role"), cMActive=mm.idx("isactive");
+    members.slice(1).forEach(r => {
+      const userId=String(r[cMUser]||"").trim().toUpperCase();
+      const shopId=String(r[cMShop]||"").trim().toUpperCase();
+      if (!userId || !shopMap[shopId] || (cMActive>=0 && !_isTrue_(r[cMActive]))) return;
+      if (!companyMap[userId]) companyMap[userId]=[];
+      companyMap[userId].push({shopId,shopName:shopMap[shopId].shopName,role:String(r[cMRole]||"MEMBER").trim().toUpperCase()});
+    });
+  }
+
   return v.slice(1).map(r => {
     const userId = String(r[cUserId] || "").trim().toUpperCase();
     if (!userId) return null;
@@ -1930,7 +1948,11 @@ function api_adminListUsersWithPin(adminPass){
       balance:Number(r[cBal] || 0),
       isActive:cActive<0 ? true : _isTrue_(r[cActive]),
       pin:_normalizePin_(r[cPin]),
-      companies:_getCompaniesByUserId_(userId)
+      companies:(companyMap[userId]||[]).sort((a,b)=>{
+        if (a.role==="PRESIDENT" && b.role!=="PRESIDENT") return -1;
+        if (b.role==="PRESIDENT" && a.role!=="PRESIDENT") return 1;
+        return a.shopName.localeCompare(b.shopName,"ja");
+      })
     };
   }).filter(Boolean).sort((a,b)=>a.userId.localeCompare(b.userId));
 }
@@ -2026,12 +2048,14 @@ function api_adminListCompanyApplications(adminPass, status){
   if (v.length<2) return [];
   const m=_headerMap_(v[0]);
   const ix=n=>m.idx(n);
+  const userMap={};
+  api_listUsers().forEach(u=>{userMap[u.userId]=u;});
   return v.slice(1).map(r=>{
     const presidentUserId=String(r[ix("presidentuserid")]||"").trim().toUpperCase();
-    const p=_findUser_(presidentUserId);
+    const p=userMap[presidentUserId];
     let memberIds=[];
     try{ memberIds=JSON.parse(String(r[ix("memberuserids")]||"[]")); }catch(e){}
-    const members=memberIds.map(id=>{ const u=_findUser_(id); return u?{userId:u.userId,name:u.name}:null; }).filter(Boolean);
+    const members=memberIds.map(id=>{ const u=userMap[String(id||"").trim().toUpperCase()]; return u?{userId:u.userId,name:u.name}:null; }).filter(Boolean);
     return {
       applicationId:String(r[ix("applicationid")]||""),
       at:String(r[ix("at")]||""),

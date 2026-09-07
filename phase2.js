@@ -48,14 +48,17 @@ function _phase2GovernmentMove_(delta, type, note, referenceId){
 function api_phase2Dashboard(adminPass){
   _assertAdminPassValue_(adminPass);
   const g = _getGovernmentAccount_();
+  const users = api_adminListUsersWithPin(adminPass);
   return {
     version:"2.0",
     government:{accountId:g.accountId,accountName:g.accountName,balance:g.balance},
     applications:api_adminListCompanyApplications(adminPass,"PENDING"),
     ranking:api_companyRanking(),
-    users:api_adminListUsersWithPin(adminPass),
+    users:users,
+    studentRanking:users.filter(u=>u.isActive)
+      .slice().sort((a,b)=>b.balance-a.balance||a.userId.localeCompare(b.userId))
+      .map((u,i)=>({rank:i+1,userId:u.userId,name:u.name,balance:u.balance})),
     shops:api_listShops(),
-    transactions:api_adminListTx(50),
     ledger:api_phase2GovernmentLedger(adminPass,50)
   };
 }
@@ -153,13 +156,31 @@ function _companyValueCreatedSince_(shopId,sinceMs){
   },0);
 }
 
+/** 全会社分の価値創出を、Txシート1回の読込で集計する。 */
+function _companyValueCreatedMap_(shops, latest){
+  const out={};
+  shops.forEach(s=>{out[s.shopId]=0;});
+  const sh=_getTxSheet_(), v=sh.getDataRange().getValues();
+  if(v.length<2) return out;
+  const m=_headerMap_(v[0]), cShop=m.idx("shopid"),cType=m.idx("type"),cAmount=m.idx("amount"),cAt=m.idx("at");
+  v.slice(1).forEach(r=>{
+    const shopId=String(r[cShop]||"").trim().toUpperCase();
+    if(!Object.prototype.hasOwnProperty.call(out,shopId)) return;
+    const sinceMs=latest[shopId]?latest[shopId].time:0;
+    const t=new Date(r[cAt]).getTime()||0;
+    if(t<sinceMs || String(r[cType]||"").toUpperCase()!=="PAY") return;
+    out[shopId]+=Math.max(0,Number(r[cAmount]||0));
+  });
+  return out;
+}
+
 function api_adminSaveCompanySnapshot(adminPass){
   _assertAdminPassValue_(adminPass);
-  const previous=_latestSnapshotMap_(), shops=api_listShops(), at=_fmtJst_(new Date()), rows=[];
+  const previous=_latestSnapshotMap_(), shops=api_listShops(), values=_companyValueCreatedMap_(shops,previous), at=_fmtJst_(new Date()), rows=[];
   shops.forEach(s=>{
     const p=previous[s.shopId], prev=p?p.balance:s.balance, growth=s.balance-prev;
     const rate=prev===0 ? (growth>0?100:0) : growth/Math.abs(prev)*100;
-    const value=_companyValueCreatedSince_(s.shopId,p?p.time:0);
+    const value=values[s.shopId]||0;
     rows.push([at,s.shopId,s.shopName,s.balance,prev,growth,rate,value]);
   });
   if(rows.length){ const sh=_getCompanySnapshotsSheet_(); sh.getRange(sh.getLastRow()+1,1,rows.length,rows[0].length).setValues(rows); }
@@ -168,12 +189,13 @@ function api_adminSaveCompanySnapshot(adminPass){
 
 function api_companyRanking(){
   const latest=_latestSnapshotMap_();
-  return api_listShops().map(s=>{
+  const shops=api_listShops(), values=_companyValueCreatedMap_(shops,latest);
+  return shops.map(s=>{
     const p=latest[s.shopId], prev=p?p.balance:s.balance, liveGrowth=s.balance-prev;
     const settled=!!p && liveGrowth===0;
     const growth=settled?p.growthAmount:liveGrowth;
     const growthRate=settled?p.growthRate:(prev===0?(growth>0?100:0):growth/Math.abs(prev)*100);
-    const valueCreated=settled?p.valueCreated:_companyValueCreatedSince_(s.shopId,p?p.time:0);
+    const valueCreated=settled?p.valueCreated:(values[s.shopId]||0);
     return {shopId:s.shopId,shopName:s.shopName,balance:s.balance,previousBalance:prev,growthAmount:growth,growthRate,valueCreated};
   }).sort((a,b)=>b.balance-a.balance||b.valueCreated-a.valueCreated||a.shopId.localeCompare(b.shopId))
     .map((x,i)=>Object.assign({rank:i+1},x));
