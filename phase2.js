@@ -25,7 +25,7 @@ function setupClassPayPhase2(){
       current.push(name);
     }
   });
-  return {ok:true, version:"3.1", sheets:["CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","Holdings",SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger"]};
+  return {ok:true, version:"3.0", sheets:["CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","Holdings",SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger"]};
 }
 
 /** Shops列の並びが変わっていても、ヘッダー名に合わせて安全に追加する */
@@ -55,7 +55,7 @@ function api_phase2Dashboard(adminPass){
   const g = _getGovernmentAccount_();
   const users = api_adminListUsersWithPin(adminPass);
   return {
-    version:"2.0",
+    version:"3.0",
     government:{accountId:g.accountId,accountName:g.accountName,balance:g.balance},
     applications:api_adminListCompanyApplications(adminPass,"PENDING"),
     ranking:api_companyRanking(),
@@ -65,6 +65,19 @@ function api_phase2Dashboard(adminPass){
       .map((u,i)=>({rank:i+1,userId:u.userId,name:u.name,balance:u.balance})),
     shops:api_adminListAllShops(adminPass),
     ledger:api_phase2GovernmentLedger(adminPass,50)
+  };
+}
+
+/** 管理トップ用の軽量集計。画面から複数回通信せず、審査件数を1回で返す。 */
+function api_adminDashboardSummary(adminPass){
+  _assertAdminPassValue_(adminPass);
+  const jobs=typeof _marketRows_==="function"?_marketRows_(_recruitmentSheet_(),_recruitDto_):[];
+  const announcements=typeof _marketRows_==="function"?_marketRows_(_announcementsSheet_(),_announcementDto_):[];
+  return {
+    reports:_weeklyReportRows_({status:"PENDING"}).length,
+    retirements:_retirementApplicationRows_({status:"PENDING"}).length,
+    recruitments:jobs.filter(x=>x.status==="PENDING_AUCTION").length,
+    announcements:announcements.filter(x=>x.status==="PENDING").length
   };
 }
 
