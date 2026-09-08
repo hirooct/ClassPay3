@@ -42,7 +42,7 @@ function _setConfigValue_(key,value){
 function api_setupStatus(){
   var ss=SpreadsheetApp.getActive(), config=ss.getSheetByName(SHEETS.CONFIG);
   var pass=config ? String(getConfig_("ADMIN_PASS","")).trim() : "";
-  return {initialized:!!pass,appName:config?String(getConfig_("APP_NAME","ClassPay")):"ClassPay",missing:["Users","Shops","Tx","Config","Holdings","CompanyMembers","CompanyApplications","RetirementApplications","Government","CompanySnapshots","GovernmentLedger"].filter(function(n){return !ss.getSheetByName(n);})};
+  return {initialized:!!pass,appName:config?String(getConfig_("APP_NAME","ClassPay")):"ClassPay",missing:["Users","Shops","Tx","Config","Holdings","CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","Government","CompanySnapshots","GovernmentLedger"].filter(function(n){return !ss.getSheetByName(n);})};
 }
 
 /** URLを受け取った人が先に初期化しないよう、公開前に教師が直ちに設定する一度限りの処理 */
@@ -62,12 +62,17 @@ function api_initialSetup(payload){
   _setConfigValue_("STOCK_SPREAD",Number(payload.stockSpread||10)/100);
   _setConfigValue_("MIN_AMOUNT",Number(payload.minAmount||1));
   _setConfigValue_("MAX_AMOUNT",Number(payload.maxAmount||500));
+  _setConfigValue_("SUPPORT_PER_POINT",Number(payload.supportPerPoint||10));
+  _setConfigValue_("STOCK_WEEKLY_LIMIT",Number(payload.stockWeeklyLimit||3));
+  _setConfigValue_("STOCK_HOLD_DAYS",Number(payload.stockHoldDays||7));
+  _setConfigValue_("STOCK_MAX_OWNERSHIP_PERCENT",Number(payload.stockMaxOwnershipPercent||20));
+  _setConfigValue_("STOCK_ACTIVITY_WEIGHT",Number(payload.stockActivityWeight||20)/100);
   return {ok:true};
 }
 
 function api_adminSettings(adminPass){
   _assertAdminPassValue_(adminPass);
-  return {appName:getConfig_("APP_NAME","ClassPay"),baseUrl:getConfig_("BASE_URL",""),interestRound:getConfig_("INTEREST_ROUND","FLOOR"),stockSpread:Number(getConfig_("STOCK_SPREAD",0.1))*100,minAmount:Number(getConfig_("MIN_AMOUNT",1)),maxAmount:Number(getConfig_("MAX_AMOUNT",500))};
+  return {appName:getConfig_("APP_NAME","ClassPay"),baseUrl:getConfig_("BASE_URL",""),interestRound:getConfig_("INTEREST_ROUND","FLOOR"),stockSpread:Number(getConfig_("STOCK_SPREAD",0.1))*100,minAmount:Number(getConfig_("MIN_AMOUNT",1)),maxAmount:Number(getConfig_("MAX_AMOUNT",500)),supportPerPoint:Number(getConfig_("SUPPORT_PER_POINT",10)),stockWeeklyLimit:Number(getConfig_("STOCK_WEEKLY_LIMIT",3)),stockHoldDays:Number(getConfig_("STOCK_HOLD_DAYS",7)),stockMaxOwnershipPercent:Number(getConfig_("STOCK_MAX_OWNERSHIP_PERCENT",20)),stockActivityWeight:Number(getConfig_("STOCK_ACTIVITY_WEIGHT",0.2))*100};
 }
 
 function api_adminSaveSettings(adminPass,payload){
@@ -78,6 +83,11 @@ function api_adminSaveSettings(adminPass,payload){
   _setConfigValue_("STOCK_SPREAD",Number(payload.stockSpread||0)/100);
   _setConfigValue_("MIN_AMOUNT",Number(payload.minAmount||1));
   _setConfigValue_("MAX_AMOUNT",Number(payload.maxAmount||500));
+  _setConfigValue_("SUPPORT_PER_POINT",Math.max(0,Number(payload.supportPerPoint||0)));
+  _setConfigValue_("STOCK_WEEKLY_LIMIT",Math.max(1,Math.floor(Number(payload.stockWeeklyLimit||3))));
+  _setConfigValue_("STOCK_HOLD_DAYS",Math.max(0,Math.floor(Number(payload.stockHoldDays||7))));
+  _setConfigValue_("STOCK_MAX_OWNERSHIP_PERCENT",Math.max(1,Math.min(100,Number(payload.stockMaxOwnershipPercent||20))));
+  _setConfigValue_("STOCK_ACTIVITY_WEIGHT",Math.max(0,Math.min(100,Number(payload.stockActivityWeight||20)))/100);
   return {ok:true,settings:api_adminSettings(adminPass)};
 }
 

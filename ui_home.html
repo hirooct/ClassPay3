@@ -310,6 +310,7 @@ body{
   0%{ background-position: 0% 0; }
   100%{ background-position: 200% 0; }
 }
+.nowGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}.nowCard{padding:14px;border-radius:16px;background:#fff;border:1px solid #dbeafe}.nowCard h3{margin:0 0 8px;color:#1e3a8a}.nowBalance{font-size:28px;font-weight:900;color:#2563eb}.nowItem{padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:13px}.nowLoading{color:#64748b}
 </style>
 </head>
 
@@ -385,6 +386,12 @@ body{
       <div class="hint">※ タイル／ボタンどちらからでも操作できます</div>
     </section>
 
+    <section class="pad">
+      <div class="padTitle">🏛️ ClassPay NOW</div>
+      <div class="hint">政府のお金、採択されたルール、会社の活動をみんなで確認できます</div>
+      <div id="publicDashboard" class="nowLoading">最新情報を読み込んでいます…</div>
+    </section>
+
   </main>
 </div>
 
@@ -441,6 +448,9 @@ function bindLinkLoaders(){
   });
 }
 
+function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function loadPublicDashboard(){google.script.run.withSuccessHandler(function(d){const t=d.totals||{},rules=d.rules||[],activities=d.activities||[];document.getElementById("publicDashboard").innerHTML=`<div class="nowGrid"><div class="nowCard"><h3>政府口座</h3><div class="nowBalance">${Number(d.balance||0).toLocaleString()} Pay</div><div class="nowItem">税金 ${Number(t.tax||0).toLocaleString()} Pay</div><div class="nowItem">権利料 ${Number(t.rights||0).toLocaleString()} Pay</div><div class="nowItem">利息支出 ${Number(t.interest||0).toLocaleString()} Pay</div><div class="nowItem">会社支援 ${Number(t.support||0).toLocaleString()} Pay</div></div><div class="nowCard"><h3>採択されたルール</h3>${rules.map(x=>`<div class="nowItem"><b>${escapeHtml(x.title)}</b>${x.effectiveAt?'<br>施行 '+escapeHtml(x.effectiveAt):''}</div>`).join("")||'<div class="nowLoading">まだありません</div>'}</div><div class="nowCard"><h3>会社の活動</h3>${activities.map(x=>`<div class="nowItem"><b>${escapeHtml(x.shopName)}</b>　${Number(x.totalScore||0)}/10点<br>${escapeHtml(x.activities)}</div>`).join("")||'<div class="nowLoading">承認済みの週報はまだありません</div>'}</div></div>`;}).withFailureHandler(function(err){document.getElementById("publicDashboard").textContent="情報を読み込めませんでした："+(err.message||err);}).api_publicGovernmentDashboard();}
+
 function tick(){
   const d = new Date();
   const hh = String(d.getHours()).padStart(2,"0");
@@ -467,6 +477,7 @@ google.script.run
 
     applyLinks();
     bindLinkLoaders();
+    loadPublicDashboard();
 
     setTimeout(hideLoader, 180);
   })

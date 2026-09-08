@@ -1321,11 +1321,12 @@ function _getHolding_(userId, shopId){
   const cUserId = m.idx("userid");
   const cShopId = m.idx("shopid");
   const cShares = m.idx("shares");
+  const cAt = m.idx("updatedat");
 
   for (let i=1;i<v.length;i++){
     if (String(v[i][cUserId]||"").trim().toUpperCase() === userId &&
         String(v[i][cShopId]||"").trim().toUpperCase() === shopId){
-      return { row: i+1, shares: Number(v[i][cShares]||0) };
+      return { row: i+1, shares: Number(v[i][cShares]||0), updatedAt:cAt<0?"":String(v[i][cAt]||"") };
     }
   }
   return { row: null, shares: 0 };
@@ -1448,7 +1449,11 @@ function _getQuote_(shopId){
   const p = _getStockParamsFromShops_(shopId);
   const s = _findShop_(shopId);
 
-  const base = _calcBasePrice_(p.assets, p.totalShares, p.basePrice, p.k, p.priceMin, p.priceMax);
+  const assetBase = _calcBasePrice_(p.assets, p.totalShares, p.basePrice, p.k, p.priceMin, p.priceMax);
+  const activityScore = typeof _latestCompanyActivityScore_==="function"?_latestCompanyActivityScore_(shopId):null;
+  const activityWeight=Number(getConfig_("STOCK_ACTIVITY_WEIGHT",0.2));
+  const activityFactor=activityScore===null?1:1+activityWeight*((activityScore-5)/5);
+  const base=_clamp_(Math.round(assetBase*activityFactor),p.priceMin,p.priceMax);
 
   return {
     shopId,
@@ -1459,9 +1464,16 @@ function _getQuote_(shopId){
     basePrice: base,
     buyPrice:  _applySpread_(base, p.spread, "BUY"),
     sellPrice: _applySpread_(base, p.spread, "SELL"),
-    spread: p.spread
+    spread: p.spread,
+    activityScore,
+    policy:_stockPolicy_()
   };
 }
+
+function _stockPolicy_(){return {weeklyLimit:Math.max(1,Number(getConfig_("STOCK_WEEKLY_LIMIT",3))),holdDays:Math.max(0,Number(getConfig_("STOCK_HOLD_DAYS",7))),maxOwnershipPercent:Math.max(1,Math.min(100,Number(getConfig_("STOCK_MAX_OWNERSHIP_PERCENT",20)))),activityWeightPercent:Number(getConfig_("STOCK_ACTIVITY_WEIGHT",0.2))*100};}
+function _stockTime_(v){if(v instanceof Date)return v.getTime();const s=String(v||"").trim(),m=s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);if(m)return new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6]||0)).getTime();const d=new Date(s);return isNaN(d)?0:d.getTime();}
+function _stockTradeStats_(userId,shopId){const sh=_getTxSheet_(),v=sh.getDataRange().getValues();if(v.length<2)return {weekCount:0,lastBuyAt:0};const m=_headerMap_(v[0]),cAt=m.idx("at"),cType=m.idx("type"),cUser=m.idx("userid"),cShop=m.idx("shopid"),now=new Date(),day=(now.getDay()+6)%7,start=new Date(now.getFullYear(),now.getMonth(),now.getDate()-day).getTime();let count=0,lastBuy=0;v.slice(1).forEach(r=>{if(String(r[cUser]||"").trim().toUpperCase()!==userId||String(r[cShop]||"").trim().toUpperCase()!==shopId)return;const type=String(r[cType]||"").toUpperCase(),t=_stockTime_(r[cAt]);if(["STOCK_BUY","STOCK_SELL"].includes(type)&&t>=start)count++;if(type==="STOCK_BUY")lastBuy=Math.max(lastBuy,t);});return {weekCount:count,lastBuyAt:lastBuy};}
+function _assertStockWeeklyLimit_(userId,shopId){const stats=_stockTradeStats_(userId,shopId),policy=_stockPolicy_();if(stats.weekCount>=policy.weeklyLimit)throw new Error("今週の株取引上限（"+policy.weeklyLimit+"回）に達しています");return {stats,policy};}
 
 
 // ====== 会社→児童 の払い戻し（売却用） ======
@@ -1534,7 +1546,8 @@ function api_stockHolding(userId, pin, shopId){
     const q = _getQuote_(shopId);
     const h = _getHolding_(userId, shopId);
 
-    return { ok:true, quote:q, holding:{ userId, shopId, shares:h.shares } };
+    const stats=_stockTradeStats_(userId,shopId);
+    return { ok:true, quote:q, holding:{ userId, shopId, shares:h.shares },tradeStatus:{weekCount:stats.weekCount,remaining:Math.max(0,q.policy.weeklyLimit-stats.weekCount)} };
   });
 }
 
@@ -1553,6 +1566,7 @@ function api_stockBuy(userId, pin, shopId, shares, expectedBuyPrice){
 
     // 本人確認
     _assertPin_(userId, pin);
+    const guard=_assertStockWeeklyLimit_(userId,shopId);
 
     // 株が有効か
     const p = _getStockParamsFromShops_(shopId);
@@ -1567,6 +1581,8 @@ function api_stockBuy(userId, pin, shopId, shares, expectedBuyPrice){
     _assertExpectedPrice_(expectedBuyPrice, buyPrice, "買値");
 
     const cost = shares * buyPrice;
+    const currentHolding=_getHolding_(userId,shopId),maxShares=Math.max(1,Math.floor(p.totalShares*guard.policy.maxOwnershipPercent/100));
+    if(currentHolding.shares+shares>maxShares)throw new Error("1社あたりの保有上限（"+maxShares+"株）を超えます");
 
     // お金移動：ユーザー→会社。同じロック内で処理し、二重ロックを避ける。
     const buyer = _findUser_(userId);
@@ -1618,10 +1634,12 @@ function api_stockSell(userId, pin, shopId, shares, expectedSellPrice){
 
     // 本人確認
     _assertPin_(userId, pin);
+    const guard=_assertStockWeeklyLimit_(userId,shopId);
 
     // 保有チェック
     const h = _getHolding_(userId, shopId);
     if (h.shares < shares) throw new Error("保有株数が足りません");
+    if(guard.stats.lastBuyAt&&Date.now()-guard.stats.lastBuyAt<guard.policy.holdDays*86400000)throw new Error("購入後"+guard.policy.holdDays+"日間は売却できません。会社を応援する期間です");
 
     // 株が有効か
     const p = _getStockParamsFromShops_(shopId);

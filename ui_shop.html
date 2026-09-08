@@ -669,6 +669,24 @@ async function renderRetirementCard_(shopId){
   document.getElementById("btnLoadRetirements").addEventListener("click",async e=>{e.preventDefault();await loadRetirements_(shopId);});
 }
 
+async function renderWeeklyReportCard_(shopId){
+  const area=document.getElementById("weeklyReportArea");if(!area)return;
+  const now=new Date(),day=(now.getDay()+6)%7,monday=new Date(now.getFullYear(),now.getMonth(),now.getDate()-day),weekKey=`${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,"0")}-${String(monday.getDate()).padStart(2,"0")}`;
+  area.innerHTML=`<details class="card" style="margin-top:14px"><summary><span class="sumLeft"><span class="shop-title" style="margin:0">📝 会社週報・活動記録</span><span class="muted" style="font-size:12px">（会社用）</span></span><span class="chev">⌄</span></summary><div style="margin-top:12px"><p class="muted">毎週の目標・活動・振り返りを政府へ提出します。審査結果に応じて政府口座から会社支援金が支給されます。</p><label>会社PASS</label><input id="weeklyPass" type="password" class="mono" placeholder="PASSを入力"><label>週（月曜日）</label><input id="weeklyWeek" type="date" value="${weekKey}"><label>今週の目標 *</label><textarea id="weeklyGoal" rows="2"></textarea><label>行った活動 *</label><textarea id="weeklyActivities" rows="3"></textarea><label>クラス・社会への貢献 *</label><textarea id="weeklyContribution" rows="2"></textarea><label>チームでの協力</label><textarea id="weeklyTeamwork" rows="2"></textarea><label>工夫・改善</label><textarea id="weeklyInnovation" rows="2"></textarea><label>振り返り・学んだこと *</label><textarea id="weeklyReflection" rows="2"></textarea><label>次の目標 *</label><textarea id="weeklyNextGoal" rows="2"></textarea><label>メンバーごとの役割・貢献</label><textarea id="weeklyMembers" rows="2" placeholder="例：Aさん 接客、Bさん 広報"></textarea><div class="row" style="margin-top:10px"><a href="#" class="btn primary" id="btnSubmitWeekly">週報を政府へ提出</a><a href="#" class="btn" id="btnLoadWeekly">過去の週報を見る</a></div><div id="weeklyRows"></div><div id="weeklyMsg"></div></div></details>`;
+  document.getElementById("btnSubmitWeekly").addEventListener("click",async e=>{e.preventDefault();await submitWeeklyReport_(shopId);});
+  document.getElementById("btnLoadWeekly").addEventListener("click",async e=>{e.preventDefault();await loadWeeklyReports_(shopId);});
+}
+
+async function submitWeeklyReport_(shopId){
+  const pass=(document.getElementById("weeklyPass")?.value||"").trim(),msg=document.getElementById("weeklyMsg");
+  try{if(!pass)throw new Error("会社PASSを入力してください");if(!confirm("この内容で今週の週報を政府へ提出しますか？"))return;const r=await call("api_companySubmitWeeklyReport",{shopId,companyPass:pass,weekKey:document.getElementById("weeklyWeek").value,goal:document.getElementById("weeklyGoal").value,activities:document.getElementById("weeklyActivities").value,contribution:document.getElementById("weeklyContribution").value,teamwork:document.getElementById("weeklyTeamwork").value,innovation:document.getElementById("weeklyInnovation").value,reflection:document.getElementById("weeklyReflection").value,nextGoal:document.getElementById("weeklyNextGoal").value,memberContributions:document.getElementById("weeklyMembers").value});msg.innerHTML=`<p class="ok">${escapeHtml_(r.message||"週報を提出しました")}</p>`;await loadWeeklyReports_(shopId)}catch(err){msg.innerHTML=`<p class="err">${escapeHtml_(err.message||err)}</p>`;}
+}
+
+async function loadWeeklyReports_(shopId){
+  const pass=(document.getElementById("weeklyPass")?.value||"").trim(),box=document.getElementById("weeklyRows"),msg=document.getElementById("weeklyMsg");
+  try{if(!pass)throw new Error("会社PASSを入力してください");box.innerHTML='<p class="muted">読み込み中...</p>';const rows=await call("api_companyWeeklyReports",{shopId,companyPass:pass}),labels={PENDING:"政府の審査待ち",APPROVED:"承認・支給済み",REJECTED:"差し戻し"};box.innerHTML=rows.length?rows.map(x=>`<div class="retirementItem"><b>${escapeHtml_(x.weekKey)}の週報</b> <span class="retirementStatus">${escapeHtml_(labels[x.status]||x.status)}</span><div class="muted" style="margin-top:6px">目標：${escapeHtml_(x.goal)}<br>活動：${escapeHtml_(x.activities)}<br>振り返り：${escapeHtml_(x.reflection)}<br>次の目標：${escapeHtml_(x.nextGoal)}</div>${x.status!=="PENDING"?`<div style="margin-top:7px"><b>評価 ${Number(x.totalScore||0)} / 10点</b>　支援金 ${Number(x.supportAmount||0).toLocaleString()} Pay${x.reviewNote?'<br>政府コメント：'+escapeHtml_(x.reviewNote):''}</div>`:''}</div>`).join(""):'<p class="muted">週報はまだありません。</p>';msg.innerHTML=""}catch(err){box.innerHTML="";msg.innerHTML=`<p class="err">${escapeHtml_(err.message||err)}</p>`;}
+}
+
 async function loadRetirements_(shopId){
   const pass=(document.getElementById("retirementPass")?.value||"").trim(),box=document.getElementById("retirementRows"),msg=document.getElementById("retirementMsg");
   try{if(!pass)throw new Error("会社PASSを入力してください");box.innerHTML='<p class="muted" style="margin-top:10px">読み込み中...</p>';msg.innerHTML="";const rows=await call("api_companyRetirementApplications",{shopId,companyPass:pass,status:""}),labels={PENDING:"未審査",APPROVED:"承認済み",REJECTED:"却下"};box.innerHTML=rows.length?rows.map(x=>`<div class="retirementItem"><div><b>${escapeHtml_(x.userName)}（${escapeHtml_(x.userId)}）</b> <span class="retirementStatus">${escapeHtml_(labels[x.status]||x.status)}</span></div><div class="muted" style="margin-top:6px">提出：${escapeHtml_(x.submittedAt)}<br>退職理由：${escapeHtml_(x.reason)}${x.reviewedAt?'<br>審査：'+escapeHtml_(x.reviewedAt)+(x.reviewNote?'／コメント：'+escapeHtml_(x.reviewNote):''):''}</div>${x.status==='PENDING'?`<div class="retirementActions"><a href="#" class="btn primary" onclick="reviewRetirement_(event,'${escapeHtml_(shopId)}','${escapeHtml_(x.applicationId)}','APPROVED')">承認する</a><a href="#" class="btn reject" onclick="reviewRetirement_(event,'${escapeHtml_(shopId)}','${escapeHtml_(x.applicationId)}','REJECTED')">却下する</a></div>`:''}</div>`).join(""):'<p class="muted" style="margin-top:12px">提出された退職届はありません。</p>';}catch(err){box.innerHTML="";msg.innerHTML=`<p class="err">${escapeHtml_(err.message||err)}</p>`;}
@@ -704,12 +722,13 @@ document.getElementById("btnLookup").addEventListener("click", async (e)=>{
     document.getElementById("resultArea").innerHTML = `
       <div class="card shop-card">
         <div class="companyHero"><div><div class="shop-title">${escapeHtml_(info.shopName)} <span class="shop-id">${escapeHtml_(info.shopId)}</span></div><div style="margin-top:7px;color:#dbeafe;font-size:13px">ClassPay 会社アカウント</div></div><div class="companyBalance"><div class="label">現在の残高</div><div class="amount mono"><span id="shopBalance">${escapeHtml_(info.balance)}</span> <small>Pay</small></div></div></div>
-        <div class="companyBody"><div class="payLinkCard"><div class="shop-title">💳 支払いを受け取る</div><p class="muted" style="margin-top:7px">下の専用ページを開くか、児童へ共有してください。</p><div class="mono url" style="margin-top:10px"><a href="${escapeHtml_(payUrl)}">${escapeHtml_(payUrl)}</a></div><div class="row" style="margin-top:12px"><a class="btn primary" href="${escapeHtml_(payUrl)}">支払いページを開く</a></div></div><div id="salaryArea"></div></div><div id="retirementArea"></div>
+        <div class="companyBody"><div class="payLinkCard"><div class="shop-title">💳 支払いを受け取る</div><p class="muted" style="margin-top:7px">下の専用ページを開くか、児童へ共有してください。</p><div class="mono url" style="margin-top:10px"><a href="${escapeHtml_(payUrl)}">${escapeHtml_(payUrl)}</a></div><div class="row" style="margin-top:12px"><a class="btn primary" href="${escapeHtml_(payUrl)}">支払いページを開く</a></div></div><div id="salaryArea"></div></div><div id="retirementArea"></div><div id="weeklyReportArea"></div>
       </div>
     `;
 
     await renderSalaryCard_(info.shopId);
     await renderRetirementCard_(info.shopId);
+    await renderWeeklyReportCard_(info.shopId);
 
   }catch(err){
     showErr(err);

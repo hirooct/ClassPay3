@@ -10,6 +10,9 @@ const SHEETS = {
   GOVERNMENT_LEDGER: "GovernmentLedger",
   HOLDINGS: "Holdings",
   RETIREMENT_APPLICATIONS: "RetirementApplications",
+  WEEKLY_REPORTS: "WeeklyReports",
+  RULE_PROPOSALS: "RuleProposals",
+  RULE_VOTES: "RuleVotes",
 };
 
 function doGet(e) {
