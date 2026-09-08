@@ -15,6 +15,7 @@ function setupClassPayPhase2(){
     "applicationId","submittedAt","shopId","shopName","userId","userName","reason","status","reviewedAt","reviewNote","reviewedBy","governmentStatus"
   ]);
   if(typeof _weeklyReportsSheet_==="function"){_weeklyReportsSheet_();_ruleProposalsSheet_();_ruleVotesSheet_();}
+  if(typeof _marketplaceSetupSheets_==="function") _marketplaceSetupSheets_();
   var snap = _getCompanySnapshotsSheet_();
   var required = ["snapshotAt","shopId","shopName","balance","previousBalance","growthAmount","growthRate","valueCreated"];
   var current = snap.getLastColumn() ? snap.getRange(1,1,1,snap.getLastColumn()).getValues()[0].map(String) : [];
@@ -24,7 +25,7 @@ function setupClassPayPhase2(){
       current.push(name);
     }
   });
-  return {ok:true, version:"3.0", sheets:["CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","Government","CompanySnapshots","Holdings",SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger"]};
+  return {ok:true, version:"3.1", sheets:["CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","Holdings",SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger"]};
 }
 
 /** Shops列の並びが変わっていても、ヘッダー名に合わせて安全に追加する */

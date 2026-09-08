@@ -13,6 +13,9 @@ const SHEETS = {
   WEEKLY_REPORTS: "WeeklyReports",
   RULE_PROPOSALS: "RuleProposals",
   RULE_VOTES: "RuleVotes",
+  RECRUITMENT_POSTINGS: "RecruitmentPostings",
+  EMPLOYMENT_APPLICATIONS: "EmploymentApplications",
+  COMPANY_ANNOUNCEMENTS: "CompanyAnnouncements",
 };
 
 function doGet(e) {
