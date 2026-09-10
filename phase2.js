@@ -25,7 +25,7 @@ function setupClassPayPhase2(){
       current.push(name);
     }
   });
-  return {ok:true, version:"3.0", sheets:["CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","Holdings",SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger"]};
+  return {ok:true, version:"3.1", sheets:["CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","Holdings",SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger"]};
 }
 
 /** Shops列の並びが変わっていても、ヘッダー名に合わせて安全に追加する */
@@ -55,7 +55,7 @@ function api_phase2Dashboard(adminPass){
   const g = _getGovernmentAccount_();
   const users = api_adminListUsersWithPin(adminPass);
   return {
-    version:"3.0",
+    version:"3.1",
     government:{accountId:g.accountId,accountName:g.accountName,balance:g.balance},
     applications:api_adminListCompanyApplications(adminPass,"PENDING"),
     ranking:api_companyRanking(),
@@ -74,6 +74,7 @@ function api_adminDashboardSummary(adminPass){
   const jobs=typeof _marketRows_==="function"?_marketRows_(_recruitmentSheet_(),_recruitDto_):[];
   const announcements=typeof _marketRows_==="function"?_marketRows_(_announcementsSheet_(),_announcementDto_):[];
   return {
+    applications:api_adminListCompanyApplications(adminPass,"PENDING").length,
     reports:_weeklyReportRows_({status:"PENDING"}).length,
     retirements:_retirementApplicationRows_({status:"PENDING"}).length,
     recruitments:jobs.filter(x=>x.status==="PENDING_AUCTION").length,
@@ -85,7 +86,7 @@ function api_phase2GovernmentLedger(adminPass, limit){
   _assertAdminPassValue_(adminPass);
   limit=Math.min(Math.max(Number(limit||50),1),300);
   const sh=_sheetByNameOrThrow_(SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger");
-  const v=sh.getDataRange().getValues();
+  const v=typeof _cpSheetValues_==="function"?_cpSheetValues_(sh):sh.getDataRange().getValues();
   if(v.length<2) return [];
   const m=_headerMap_(v[0]), ix=n=>m.idx(n);
   return v.slice(1).filter(r=>r[ix("ledgerid")]).slice(-limit).reverse().map(r=>({

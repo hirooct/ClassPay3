@@ -312,7 +312,7 @@ details[open] .chev{ transform: rotate(180deg); }
     <div class="brand">
       <div class="logo">💎</div>
       <div style="min-width:0">
-        <div class="title">ClassPay <span class="version">v3.0</span></div>
+        <div class="title">ClassPay <span class="version">v3.1</span></div>
         <div class="sub">学級内通貨のデジタル決済　クラスペイ</div>
       </div>
     </div>
@@ -347,8 +347,8 @@ details[open] .chev{ transform: rotate(180deg); }
 </div>
 
 <script>
-let BASE = "";
-function showCompanyView_(name,btn){document.querySelectorAll('[data-company-view]').forEach(x=>x.classList.toggle('companyViewOff',x.dataset.companyView!==name));document.querySelectorAll('.companyNav [data-company-tab]').forEach(x=>x.classList.toggle('active',x.dataset.companyTab===name));if(btn)btn.blur()}
+let BASE = "",CURRENT_SHOP_ID="",COMPANY_VIEW_LOADED={};
+async function showCompanyView_(name,btn){document.querySelectorAll('[data-company-view]').forEach(x=>x.classList.toggle('companyViewOff',x.dataset.companyView!==name));document.querySelectorAll('.companyNav [data-company-tab]').forEach(x=>x.classList.toggle('active',x.dataset.companyTab===name));if(btn)btn.blur();if(!CURRENT_SHOP_ID||name==='overview'||COMPANY_VIEW_LOADED[name])return;COMPANY_VIEW_LOADED[name]=true;try{const loaders={payroll:renderSalaryCard_,retirement:renderRetirementCard_,reports:renderWeeklyReportCard_,market:renderCompanyMarketCard_};await loaders[name](CURRENT_SHOP_ID)}catch(e){COMPANY_VIEW_LOADED[name]=false;showErr(e)}}
 
 /* ===== 共通 ===== */
 function buildUrl(p, params){
@@ -398,12 +398,12 @@ function call(name, payload){
       .withFailureHandler(reject)[name](payload);
   });
 }
-async function loadShopList_(){
+async function loadShopList_(provided){
   const box = document.getElementById("shopList");
   if (!box) return;
 
   try{
-    const shops = await call("api_shopList");
+    const shops = provided || await call("api_shopList");
 
     if (!Array.isArray(shops) || shops.length === 0){
       box.innerHTML = `<p class="muted">表示できる会社がありません。</p>`;
@@ -744,8 +744,7 @@ document.getElementById("btnLookup").addEventListener("click", async (e)=>{
         <section data-company-view="payroll" class="companyViewOff"><div id="salaryArea"></div></section><section data-company-view="retirement" class="companyViewOff"><div id="retirementArea"></div></section><section data-company-view="reports" class="companyViewOff"><div id="weeklyReportArea"></div></section><section data-company-view="market" class="companyViewOff"><div id="companyMarketArea"></div></section>
       </div>
     `;
-
-    await Promise.all([renderSalaryCard_(info.shopId),renderRetirementCard_(info.shopId),renderWeeklyReportCard_(info.shopId),renderCompanyMarketCard_(info.shopId)]);
+    CURRENT_SHOP_ID=info.shopId;COMPANY_VIEW_LOADED={overview:true};
 
   }catch(err){
     showErr(err);
@@ -758,10 +757,12 @@ document.getElementById("btnLookup").addEventListener("click", async (e)=>{
 /* ===== 初期化 ===== */
 (async function init(){
   try{
-    await loadBase_();
+    const boot=await call("api_pageBootstrapV31","shop");
+    BASE=String(boot.baseUrl||"").replace(/\?p=.*$/,'').replace(/\?$/,'').replace(/\/$/,'');
+    if(!BASE)throw new Error("BASE_URL が空です。");
     document.getElementById("btnBackHome").href = buildUrl("home");
 
-    await loadShopList_(); // ←これ追加
+    await loadShopList_(boot.shops||[]);
 
   }catch(err){
     console.error(err);

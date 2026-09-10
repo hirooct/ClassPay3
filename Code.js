@@ -66,7 +66,9 @@ function getConfig_(key, defaultValue) {
   const sh = SpreadsheetApp.getActive().getSheetByName(SHEETS.CONFIG);
   if (!sh) return defaultValue;
 
-  const v = sh.getDataRange().getValues();
+  const v = typeof _cpSheetValues_ === "function"
+    ? _cpSheetValues_(sh)
+    : sh.getDataRange().getValues();
   for (let i = 1; i < v.length; i++) {
     if (String(v[i][0]).trim() === key) return v[i][1];
   }

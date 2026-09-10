@@ -26,11 +26,9 @@ function _getTxByUserId_(userId, limit) {
 
   const sh = SpreadsheetApp.getActive().getSheetByName(SHEETS.TX);
   if (!sh) return [];
-
-  const values = sh.getDataRange().getValues();
-  if (values.length <= 1) return [];
-
-  const { idx } = _headerMap_(values[0]);
+  const lastRow=sh.getLastRow(),lastCol=sh.getLastColumn();
+  if(lastRow<=1||lastCol<1)return [];
+  const header=sh.getRange(1,1,1,lastCol).getValues()[0],{idx}=_headerMap_(header);
 
   const iTxId     = idx("txId");
   const iAt       = idx("at");
@@ -88,12 +86,19 @@ function _getTxByUserId_(userId, limit) {
     return s;
   }
 
-  const rows = values.slice(1)
-    .filter(r => String(r[iUserId] || "").trim().toUpperCase() === userId)
-    // ★ 数値時刻で降順にする（混在でも崩れない）
-    .sort((a, b) => _toTime_(b[iAt]) - _toTime_(a[iAt]))
-    .slice(0, limit)
-    .map(r => ({
+  // Txは追記型なので末尾から読む。大量履歴でも最初から全件取得しない。
+  const matched=[];
+  let end=lastRow;
+  const chunkSize=Math.max(1000,Math.min(5000,limit*40));
+  while(end>=2&&matched.length<limit){
+    const start=Math.max(2,end-chunkSize+1),rows=sh.getRange(start,1,end-start+1,lastCol).getValues();
+    for(let i=rows.length-1;i>=0&&matched.length<limit;i--){
+      const r=rows[i];
+      if(String(r[iUserId]||"").trim().toUpperCase()===userId)matched.push(r);
+    }
+    end=start-1;
+  }
+  return matched.map(r => ({
       txId:     String(r[iTxId] || ""),
       at:       _toAtString_(r[iAt]),
       type:     String(r[iType] || ""),
@@ -106,8 +111,6 @@ function _getTxByUserId_(userId, limit) {
       note:     String(r[iNote] || ""),
       meta:     (iMeta >= 0) ? String(r[iMeta] || "") : "",
     }));
-
-  return rows;
 }
 
 
@@ -139,7 +142,7 @@ function _getTxSheet_() {
 
 function _findUser_(userId) {
   const sh = _getUsersSheet_();
-  const values = sh.getDataRange().getValues();
+  const values = typeof _cpSheetValues_==="function"?_cpSheetValues_(sh):sh.getDataRange().getValues();
   if (values.length < 2) throw new Error("Usersにデータがありません");
 
   const m = _headerMap_(values[0]);
@@ -171,7 +174,7 @@ function _findUser_(userId) {
 
 function _findShop_(shopId) {
   const sh = _getShopsSheet_();
-  const values = sh.getDataRange().getValues();
+  const values = typeof _cpSheetValues_==="function"?_cpSheetValues_(sh):sh.getDataRange().getValues();
   if (values.length < 2) throw new Error("Shopsにデータがありません");
 
   const m = _headerMap_(values[0]);
@@ -352,11 +355,10 @@ function api_adminListTx(limit) {
   limit = Math.min(Math.max(Number(limit || 50), 1), 300);
 
   const sh = _getTxSheet_();
-  const values = sh.getDataRange().getValues();
-  if (values.length <= 1) return [];
-
-  const rows = values.slice(1).filter(r => r[0]);
-  const tail = rows.slice(Math.max(0, rows.length - limit)).reverse();
+  const lastRow=sh.getLastRow(),lastCol=sh.getLastColumn();
+  if(lastRow<=1)return [];
+  const start=Math.max(2,lastRow-limit+1);
+  const tail=sh.getRange(start,1,lastRow-start+1,lastCol).getValues().filter(r=>r[0]).reverse();
 
   return tail.map(r => ({
     txId: String(r[0] || ""),
@@ -375,7 +377,7 @@ function api_adminListTx(limit) {
 function api_listUsers() {
   // 管理画面用（PINは返さない）
   const sh = _getUsersSheet_();
-  const v = sh.getDataRange().getValues();
+  const v = typeof _cpSheetValues_==="function"?_cpSheetValues_(sh):sh.getDataRange().getValues();
   if (v.length < 2) return [];
 
   const m = _headerMap_(v[0]);
@@ -421,8 +423,7 @@ function api_shopInfo(shopId){
     balance: s.balance
   };
 }
-function api_balance(userId, pin, limit){
-  return lockRun_(() => {
+function _apiBalanceRead_(userId, pin, limit){
     userId = String(userId || "").trim().toUpperCase();
     pin    = String(pin || "").trim();
 
@@ -444,7 +445,9 @@ function api_balance(userId, pin, limit){
       retirementApplications: _retirementApplicationRows_({userId:u.userId}),
       tx: _getTxByUserId_(userId, limit), // ★ここをlimitに
     };
-  });
+}
+function api_balance(userId, pin, limit){
+  return _apiBalanceRead_(userId,pin,limit);
 }
 
 function api_adminDistributeAll(adminPass, amount, reason){
@@ -667,7 +670,7 @@ function api_checkAdminPass(pass){
 
 function api_listShops() {
   const sh = _getShopsSheet_();
-  const v = sh.getDataRange().getValues();
+  const v = typeof _cpSheetValues_==="function"?_cpSheetValues_(sh):sh.getDataRange().getValues();
   if (v.length < 2) return [];
 
   const m = _headerMap_(v[0]);
@@ -1817,8 +1820,8 @@ function api_getActivePayOptions(){
   const usersSh = ss.getSheetByName("Users");
   const shopsSh = ss.getSheetByName("Shops");
 
-  const users = usersSh.getDataRange().getValues();
-  const shops = shopsSh.getDataRange().getValues();
+  const users = typeof _cpSheetValues_==="function"?_cpSheetValues_(usersSh):usersSh.getDataRange().getValues();
+  const shops = typeof _cpSheetValues_==="function"?_cpSheetValues_(shopsSh):shopsSh.getDataRange().getValues();
 
   const userHeader = users[0];
   const shopHeader = shops[0];
@@ -1995,7 +1998,7 @@ function _getCompaniesByUserId_(userId){
   userId = String(userId || "").trim().toUpperCase();
   if (!userId) return [];
   const sh = _getCompanyMembersSheet_();
-  const v = sh.getDataRange().getValues();
+  const v = typeof _cpSheetValues_==="function"?_cpSheetValues_(sh):sh.getDataRange().getValues();
   if (v.length < 2) return [];
   const m = _headerMap_(v[0]);
   const cShop=m.idx("shopid"), cUser=m.idx("userid"), cRole=m.idx("role"), cActive=m.idx("isactive");
@@ -2022,12 +2025,12 @@ function api_myCompanies(userId, pin){
 
 function _membershipHistoryRows_(onlyUserId){
   onlyUserId=String(onlyUserId||"").trim().toUpperCase();
-  const sh=_getCompanyMembersSheet_(),v=sh.getDataRange().getValues();
+  const sh=_getCompanyMembersSheet_(),v=typeof _cpSheetValues_==="function"?_cpSheetValues_(sh):sh.getDataRange().getValues();
   if(v.length<2)return [];
   const m=_headerMap_(v[0]),ix=n=>m.idx(n),shopNames={},userNames={};
-  const sv=_getShopsSheet_().getDataRange().getValues();
+  const shopsSheet=_getShopsSheet_(),sv=typeof _cpSheetValues_==="function"?_cpSheetValues_(shopsSheet):shopsSheet.getDataRange().getValues();
   if(sv.length>1){const sm=_headerMap_(sv[0]),cId=sm.idx("shopid"),cName=sm.idx("shopname"),cActive=sm.idx("isactive");sv.slice(1).forEach(r=>{const id=String(r[cId]||"").trim().toUpperCase();if(id)shopNames[id]={name:String(r[cName]||""),active:cActive<0?true:_isTrue_(r[cActive])};});}
-  const uv=_getUsersSheet_().getDataRange().getValues();
+  const usersSheet=_getUsersSheet_(),uv=typeof _cpSheetValues_==="function"?_cpSheetValues_(usersSheet):usersSheet.getDataRange().getValues();
   if(uv.length>1){const um=_headerMap_(uv[0]),cId=um.idx("userid"),cName=um.idx("name");uv.slice(1).forEach(r=>{const id=String(r[cId]||"").trim().toUpperCase();if(id)userNames[id]=String(r[cName]||"");});}
   return v.slice(1).map((r,i)=>{
     const userId=String(r[ix("userid")]||"").trim().toUpperCase();
@@ -2056,7 +2059,7 @@ function _getRetirementApplicationsSheet_(createIfMissing){
 
 function _retirementApplicationRows_(filter){
   filter=filter||{};const sh=_getRetirementApplicationsSheet_(false);if(!sh)return [];
-  const v=sh.getDataRange().getValues();if(v.length<2)return [];
+  const v=typeof _cpSheetValues_==="function"?_cpSheetValues_(sh):sh.getDataRange().getValues();if(v.length<2)return [];
   const m=_headerMap_(v[0]),ix=n=>m.idx(n),userId=String(filter.userId||"").trim().toUpperCase(),shopId=String(filter.shopId||"").trim().toUpperCase(),status=String(filter.status||"").trim().toUpperCase();
   return v.slice(1).map((r,i)=>({rowNumber:i+2,applicationId:String(r[ix("applicationid")]||""),submittedAt:String(r[ix("submittedat")]||""),shopId:String(r[ix("shopid")]||"").trim().toUpperCase(),shopName:String(r[ix("shopname")]||""),userId:String(r[ix("userid")]||"").trim().toUpperCase(),userName:String(r[ix("username")]||""),reason:String(r[ix("reason")]||""),status:String(r[ix("status")]||"").trim().toUpperCase(),reviewedAt:String(r[ix("reviewedat")]||""),reviewNote:String(r[ix("reviewnote")]||""),reviewedBy:String(r[ix("reviewedby")]||""),governmentStatus:String(r[ix("governmentstatus")]||"RECEIVED")})).filter(x=>x.applicationId&&(!userId||x.userId===userId)&&(!shopId||x.shopId===shopId)&&(!status||x.status===status)).reverse();
 }
@@ -2177,7 +2180,7 @@ function api_adminListCompanyApplications(adminPass, status){
   _assertAdminPassValue_(adminPass);
   status=String(status||"").trim().toUpperCase();
   const sh=_getCompanyApplicationsSheet_();
-  const v=sh.getDataRange().getValues();
+  const v=typeof _cpSheetValues_==="function"?_cpSheetValues_(sh):sh.getDataRange().getValues();
   if (v.length<2) return [];
   const m=_headerMap_(v[0]);
   const ix=n=>m.idx(n);
@@ -2281,7 +2284,7 @@ function api_adminRejectCompanyApplication(adminPass, applicationId, reviewNote)
 
 function _getGovernmentAccount_(){
   const sh=_getGovernmentSheet_();
-  const v=sh.getDataRange().getValues();
+  const v=typeof _cpSheetValues_==="function"?_cpSheetValues_(sh):sh.getDataRange().getValues();
   if(v.length<2) throw new Error("Government口座がありません。setupClassPayPhase1() を実行してください");
   const m=_headerMap_(v[0]);
   const cId=m.idx("accountid"), cName=m.idx("accountname"), cBal=m.idx("balance"), cUpdated=m.idx("updatedat");

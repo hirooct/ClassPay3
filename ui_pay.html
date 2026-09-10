@@ -254,7 +254,7 @@ hr{
     <div class="brand">
       <div class="logo">💎</div>
       <div style="min-width:0">
-        <div class="title">ClassPay <span style="font-size:11px;background:#1e40af;color:#fff;padding:3px 7px;border-radius:999px;vertical-align:middle">v3.0</span></div>
+        <div class="title">ClassPay <span style="font-size:11px;background:#1e40af;color:#fff;padding:3px 7px;border-radius:999px;vertical-align:middle">v3.1</span></div>
         <div class="sub">学級内通貨のデジタル決済　クラスペイ</div>
       </div>
     </div>
@@ -372,8 +372,8 @@ function loadBase_(){
       .getBaseUrlForClient();
   });
 }
-async function loadPayOptions_(){
-  const data = await call("api_getActivePayOptions");
+async function loadPayOptions_(provided){
+  const data = provided || await call("api_getActivePayOptions");
 
   const userSelect = document.getElementById("userId");
   const shopSelect = document.getElementById("shopId");
@@ -477,8 +477,10 @@ async function pay(){
 /* ===== 初期化 ===== */
 (async function init(){
   try{
-    await loadBase_();
-    await loadPayOptions_();
+    const boot=await call("api_pageBootstrapV31","pay");
+    BASE=String(boot.baseUrl||"").replace(/\?p=.*$/,'').replace(/\?$/,'');
+    if(!BASE)throw new Error("BASE_URL が空です。");
+    await loadPayOptions_(boot.options||{});
     document.getElementById("btnBackHome").href = buildUrl("home");
 
     const sp = new URLSearchParams(location.search);
