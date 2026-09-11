@@ -16,6 +16,10 @@ const SHEETS = {
   RECRUITMENT_POSTINGS: "RecruitmentPostings",
   EMPLOYMENT_APPLICATIONS: "EmploymentApplications",
   COMPANY_ANNOUNCEMENTS: "CompanyAnnouncements",
+  PRODUCT_CATALOG: "ProductCatalog",
+  PRODUCT_ORDERS: "ProductOrders",
+  COMPANY_CONTRACTS: "CompanyContracts",
+  WEEKLY_SETTLEMENTS: "WeeklySettlements",
 };
 
 function doGet(e) {

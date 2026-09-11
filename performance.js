@@ -1,4 +1,4 @@
-/* ClassPay 3.1: 高速化基盤 */
+/* ClassPay 3.2: 高速化基盤 */
 var _CP_REQUEST_VALUES_ = null;
 
 function _cpBeginRequest_(){
@@ -28,10 +28,12 @@ function api_studentDashboardV31(userId,pin,limit){
   _cpBeginRequest_();
   try{
     return _cpTimed_("studentDashboard",function(){
+      const economy=api_userEconomyV32(userId,pin);
       return {
-        version:"3.1",
+        version:"3.2",
         account:_apiBalanceRead_(userId,pin,limit),
-        civic:api_userCivicDashboard(userId,pin)
+        civic:api_userCivicDashboard(userId,pin,economy),
+        economy:economy
       };
     });
   }finally{
@@ -50,7 +52,7 @@ function api_adminHomeV31(adminPass){
       const userCount=users.length<2?0:users.slice(1).filter(r=>r[um.idx("userid")]&&(um.idx("isactive")<0||_isTrue_(r[um.idx("isactive")]))).length;
       const shopCount=shops.length<2?0:shops.slice(1).filter(r=>r[sm.idx("shopid")]&&(sm.idx("isactive")<0||_isTrue_(r[sm.idx("isactive")]))).length;
       const summary=api_adminDashboardSummary(adminPass);
-      return Object.assign({version:"3.1",governmentBalance:_getGovernmentAccount_().balance,userCount,shopCount},summary);
+      return Object.assign({version:"3.2",governmentBalance:_getGovernmentAccount_().balance,userCount,shopCount},summary);
     });
   }finally{
     _cpEndRequest_();
@@ -63,7 +65,7 @@ function api_pageBootstrapV31(page){
   _cpBeginRequest_();
   try{
     return _cpTimed_("pageBootstrap:"+page,function(){
-      const out={version:"3.1",baseUrl:getConfig_("BASE_URL","")};
+      const out={version:"3.2",baseUrl:getConfig_("BASE_URL","")};
       if(page==="balance"||page==="pay")out.options=api_getActivePayOptions();
       if(page==="shop")out.shops=api_shopList();
       return out;

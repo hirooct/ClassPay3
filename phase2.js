@@ -25,7 +25,7 @@ function setupClassPayPhase2(){
       current.push(name);
     }
   });
-  return {ok:true, version:"3.1", sheets:["CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","Holdings",SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger"]};
+  return {ok:true, version:"3.2", sheets:["CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","Holdings",SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger","ProductCatalog","ProductOrders","CompanyContracts","WeeklySettlements"]};
 }
 
 /** Shops列の並びが変わっていても、ヘッダー名に合わせて安全に追加する */
@@ -55,7 +55,7 @@ function api_phase2Dashboard(adminPass){
   const g = _getGovernmentAccount_();
   const users = api_adminListUsersWithPin(adminPass);
   return {
-    version:"3.1",
+    version:"3.2",
     government:{accountId:g.accountId,accountName:g.accountName,balance:g.balance},
     applications:api_adminListCompanyApplications(adminPass,"PENDING"),
     ranking:api_companyRanking(),

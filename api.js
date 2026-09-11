@@ -902,10 +902,9 @@ function api_adminWithdrawAllShops(adminPass, withdrawAmount, reason, mode){
  */
 function api_adminInterestOnBalance_Trigger() {
   _ensureCoreSheets_();
-  return api_phase2UserInterest(
+  return api_adminRunWeeklyV32(
     String(getConfig_("ADMIN_PASS", "")),
-    5,
-    "週次利息（月曜日）"
+    ["USER_INTEREST"]
   );
 }
 
@@ -1473,10 +1472,10 @@ function _getQuote_(shopId){
   };
 }
 
-function _stockPolicy_(){return {weeklyLimit:Math.max(1,Number(getConfig_("STOCK_WEEKLY_LIMIT",3))),holdDays:Math.max(0,Number(getConfig_("STOCK_HOLD_DAYS",7))),maxOwnershipPercent:Math.max(1,Math.min(100,Number(getConfig_("STOCK_MAX_OWNERSHIP_PERCENT",20)))),activityWeightPercent:Number(getConfig_("STOCK_ACTIVITY_WEIGHT",0.2))*100};}
+function _stockPolicy_(){return {weeklyLimit:Math.max(1,Number(getConfig_("STOCK_WEEKLY_LIMIT",3))),dailyLimit:Math.max(1,Number(getConfig_("STOCK_DAILY_LIMIT",2))),holdDays:Math.max(0,Number(getConfig_("STOCK_HOLD_DAYS",7))),maxOwnershipPercent:Math.max(1,Math.min(100,Number(getConfig_("STOCK_MAX_OWNERSHIP_PERCENT",20)))),activityWeightPercent:Number(getConfig_("STOCK_ACTIVITY_WEIGHT",0.2))*100,reasonRequired:boolConfig_("STOCK_REASON_REQUIRED",true)};}
 function _stockTime_(v){if(v instanceof Date)return v.getTime();const s=String(v||"").trim(),m=s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);if(m)return new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6]||0)).getTime();const d=new Date(s);return isNaN(d)?0:d.getTime();}
-function _stockTradeStats_(userId,shopId){const sh=_getTxSheet_(),v=sh.getDataRange().getValues();if(v.length<2)return {weekCount:0,lastBuyAt:0};const m=_headerMap_(v[0]),cAt=m.idx("at"),cType=m.idx("type"),cUser=m.idx("userid"),cShop=m.idx("shopid"),now=new Date(),day=(now.getDay()+6)%7,start=new Date(now.getFullYear(),now.getMonth(),now.getDate()-day).getTime();let count=0,lastBuy=0;v.slice(1).forEach(r=>{if(String(r[cUser]||"").trim().toUpperCase()!==userId||String(r[cShop]||"").trim().toUpperCase()!==shopId)return;const type=String(r[cType]||"").toUpperCase(),t=_stockTime_(r[cAt]);if(["STOCK_BUY","STOCK_SELL"].includes(type)&&t>=start)count++;if(type==="STOCK_BUY")lastBuy=Math.max(lastBuy,t);});return {weekCount:count,lastBuyAt:lastBuy};}
-function _assertStockWeeklyLimit_(userId,shopId){const stats=_stockTradeStats_(userId,shopId),policy=_stockPolicy_();if(stats.weekCount>=policy.weeklyLimit)throw new Error("今週の株取引上限（"+policy.weeklyLimit+"回）に達しています");return {stats,policy};}
+function _stockTradeStats_(userId,shopId){const sh=_getTxSheet_(),v=sh.getDataRange().getValues();if(v.length<2)return {weekCount:0,dayCount:0,lastBuyAt:0};const m=_headerMap_(v[0]),cAt=m.idx("at"),cType=m.idx("type"),cUser=m.idx("userid"),cShop=m.idx("shopid"),now=new Date(),day=(now.getDay()+6)%7,start=new Date(now.getFullYear(),now.getMonth(),now.getDate()-day).getTime(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();let count=0,dayCount=0,lastBuy=0;v.slice(1).forEach(r=>{if(String(r[cUser]||"").trim().toUpperCase()!==userId||String(r[cShop]||"").trim().toUpperCase()!==shopId)return;const type=String(r[cType]||"").toUpperCase(),t=_stockTime_(r[cAt]);if(["STOCK_BUY","STOCK_SELL"].includes(type)&&t>=start)count++;if(["STOCK_BUY","STOCK_SELL"].includes(type)&&t>=today)dayCount++;if(type==="STOCK_BUY")lastBuy=Math.max(lastBuy,t);});return {weekCount:count,dayCount,lastBuyAt:lastBuy};}
+function _assertStockWeeklyLimit_(userId,shopId){const stats=_stockTradeStats_(userId,shopId),policy=_stockPolicy_();if(stats.dayCount>=policy.dailyLimit)throw new Error("今日の株取引上限（"+policy.dailyLimit+"回）に達しています");if(stats.weekCount>=policy.weeklyLimit)throw new Error("今週の株取引上限（"+policy.weeklyLimit+"回）に達しています");return {stats,policy};}
 
 
 // ====== 会社→児童 の払い戻し（売却用） ======
@@ -1550,17 +1549,18 @@ function api_stockHolding(userId, pin, shopId){
     const h = _getHolding_(userId, shopId);
 
     const stats=_stockTradeStats_(userId,shopId);
-    return { ok:true, quote:q, holding:{ userId, shopId, shares:h.shares },tradeStatus:{weekCount:stats.weekCount,remaining:Math.max(0,q.policy.weeklyLimit-stats.weekCount)} };
+    return { ok:true, quote:q, holding:{ userId, shopId, shares:h.shares },tradeStatus:{weekCount:stats.weekCount,dayCount:stats.dayCount,remaining:Math.max(0,q.policy.weeklyLimit-stats.weekCount),dailyRemaining:Math.max(0,q.policy.dailyLimit-stats.dayCount)} };
   });
 }
 
 // 株を買う（提示の買値で約定：大量でも単価固定）
-function api_stockBuy(userId, pin, shopId, shares, expectedBuyPrice){
+function api_stockBuy(userId, pin, shopId, shares, expectedBuyPrice, supportReason){
   return lockRun_(() => {
     userId = String(userId||"").trim().toUpperCase();
     pin    = String(pin||"").trim();
     shopId = String(shopId||"").trim().toUpperCase();
     shares = Math.floor(Number(shares||0));
+    supportReason = String(supportReason||"").trim();
 
     if (!userId) throw new Error("ユーザーIDが空です");
     if (!pin) throw new Error("PINを入力してください");
@@ -1570,6 +1570,7 @@ function api_stockBuy(userId, pin, shopId, shares, expectedBuyPrice){
     // 本人確認
     _assertPin_(userId, pin);
     const guard=_assertStockWeeklyLimit_(userId,shopId);
+    if(guard.policy.reasonRequired&&supportReason.length<5)throw new Error("この会社を応援する理由を5文字以上で入力してください");
 
     // 株が有効か
     const p = _getStockParamsFromShops_(shopId);
@@ -1601,8 +1602,8 @@ function api_stockBuy(userId, pin, shopId, shares, expectedBuyPrice){
       txId:uuid_(), at:_fmtJst_(new Date()), type:"STOCK_BUY",
       userId:buyer.userId, userName:buyer.name,
       shopId:shop.shopId, shopName:shop.shopName,
-      amount:-cost, status:"OK", note:`株購入 ${shares}株 @${buyPrice}`,
-      meta:JSON.stringify({shares:shares,unitPrice:buyPrice})
+      amount:-cost, status:"OK", note:`株購入 ${shares}株 @${buyPrice}／応援理由：${supportReason}`,
+      meta:JSON.stringify({shares:shares,unitPrice:buyPrice,supportReason:supportReason})
     });
 
     // 保有更新
