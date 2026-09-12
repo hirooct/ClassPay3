@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "from": "0.0.0",
+  "to": "3.3.0",
+  "reversible": false,
+  "dataPolicy": "additive-only",
+  "actions": [
+    {"type":"ensureSheet","name":"Users","headers":["userId","name","balance","isActive","pin"]},
+    {"type":"ensureSheet","name":"Shops","headers":["shopId","shopName","balance","isActive","companyPass","URL","totalShares","basePrice","k","priceMin","priceMax","stockActive","spread"]},
+    {"type":"ensureSheet","name":"Tx","headers":["txId","at","type","userId","userName","shopId","shopName","amount","status","note","meta"]},
+    {"type":"ensureSheet","name":"Config","headers":["key","value"]},
+    {"type":"ensureSheet","name":"Holdings","headers":["userId","shopId","shares","updatedAt"]},
+    {"type":"ensureSheet","name":"CompanyMembers","headers":["shopId","userId","role","isActive","joinedAt","leftAt","leaveReason","leftBy"]},
+    {"type":"ensureSheet","name":"CompanyApplications","headers":["applicationId","at","companyName","presidentUserId","memberUserIds","companyPass","activity","status","reviewedAt","reviewNote","shopId"]},
+    {"type":"ensureSheet","name":"RetirementApplications","headers":["applicationId","submittedAt","shopId","shopName","userId","userName","reason","status","reviewedAt","reviewNote","reviewedBy","governmentStatus"]},
+    {"type":"ensureSheet","name":"Government","headers":["accountId","accountName","balance","updatedAt"]},
+    {"type":"ensureSheet","name":"GovernmentLedger","headers":["ledgerId","at","type","amount","balanceAfter","referenceId","note"]},
+    {"type":"ensureSheet","name":"CompanySnapshots","headers":["snapshotAt","shopId","shopName","balance","previousBalance","growthAmount","growthRate","valueCreated"]},
+    {"type":"ensureSheet","name":"WeeklyReports","headers":["reportId","weekKey","submittedAt","shopId","shopName","goal","activities","contribution","teamwork","innovation","reflection","nextGoal","memberContributions","status","reviewedAt","reviewNote","totalScore","supportAmount"]},
+    {"type":"ensureSheet","name":"RecruitmentPostings","headers":["postingId","submittedAt","shopId","shopName","title","description","positions","bidAmount","status","publishedAt","expiresAt","reviewNote"]},
+    {"type":"ensureSheet","name":"EmploymentApplications","headers":["applicationId","submittedAt","postingId","shopId","shopName","userId","userName","motivation","strengths","status","reviewedAt","reviewNote"]},
+    {"type":"ensureSheet","name":"CompanyAnnouncements","headers":["announcementId","submittedAt","shopId","shopName","kind","title","body","eventAt","feeAmount","status","reviewedAt","reviewNote","publishedAt","expiresAt"]},
+    {"type":"ensureSheet","name":"ProductCatalog","headers":["productId","shopId","shopName","productName","description","price","stock","isActive","createdAt","updatedAt"]},
+    {"type":"ensureSheet","name":"ProductOrders","headers":["orderId","at","productId","productName","buyerUserId","buyerUserName","sellerShopId","sellerShopName","quantity","unitPrice","totalAmount","status","note"]},
+    {"type":"ensureSheet","name":"CompanyContracts","headers":["contractId","at","fromShopId","fromShopName","toShopId","toShopName","amount","purpose","status","approvedAt","approvedBy"]},
+    {"type":"ensureSheet","name":"WeeklySettlements","headers":["settlementId","weekKey","component","startedAt","finishedAt","status","amount","detail","error"]},
+    {"type":"ensureSheet","name":"UpdateHistory","headers":["updateId","startedAt","finishedAt","fromVersion","toVersion","status","backupFolderId","gasVersion","deploymentId","message"]},
+    {"type":"setConfigDefault","key":"APP_NAME","value":"ClassPay"},
+    {"type":"setConfigDefault","key":"RELEASE_CHANNEL","value":"stable"},
+    {"type":"setConfigDefault","key":"RELEASE_MANIFEST_URL","value":"https://raw.githubusercontent.com/hirooct/ClassPay3/main/release/manifest.json"}
+  ]
+}

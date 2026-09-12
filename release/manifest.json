@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "latestVersion": "3.3.0",
+  "minimumVersion": "3.2.0",
+  "releaseDate": "2026-09-12",
+  "updateType": "RECOMMENDED",
+  "migrationRequired": true,
+  "releaseNotes": [
+    "ClassPay Updater / Installer v1に対応",
+    "管理画面にシステムアップデート画面を追加",
+    "更新履歴とヘルスチェックを追加",
+    "児童データを保持する追加型Migrationを導入"
+  ],
+  "files": [
+    {"name":"Code","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/Code.js","sha256":"4915bd9ef974f0d5d8f4ab92f7aeb70237388bd60b58a5500b702f4c1d0e4503"},
+    {"name":"api","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/api.js","sha256":"e2cac5e3642794a275efb7bf4a5581399ae89172dc75e19310139ff5c29023a0"},
+    {"name":"appsscript","type":"JSON","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/appsscript.json","sha256":"2b1d255afc5d8fa1231b1eb905a4bf3a89338fb68d8ada876a7bc654873d866d"},
+    {"name":"db","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/db.js","sha256":"bbbfdf492af42072322a33d6fdd06821462bbcb2d5f783077fa9c4d2044e1d31"},
+    {"name":"economy_v32","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/economy_v32.js","sha256":"b577bc212ed70d4398b01c3117b278b6f869664bcdd38117b913925f6c2dc778"},
+    {"name":"governance","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/governance.js","sha256":"c282764e07bc009ac19383aebf4e2ed667607d4e54c8adfd1b0028dea6c13c5b"},
+    {"name":"index","type":"HTML","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/index.html","sha256":"580a9f908b7276a24d9c1c51a46c7ba9bf432db81b4dab426d75f25440d5afee"},
+    {"name":"marketplace","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/marketplace.js","sha256":"0f61dc785a6fbd7bed413d7ce088ebd1c32f6a582cb7e5ded89972e3f7d9ead8"},
+    {"name":"pay","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/pay.js","sha256":"4d7dc54bd97cefcb8fa80b66946bbba6fda1a93c7117df96c66f08cd7f309437"},
+    {"name":"performance","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/performance.js","sha256":"07ce0d46cfcb4aea626152e829ba58d5c2bd6c4c47328db8175128d789e71bdb"},
+    {"name":"phase2","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/phase2.js","sha256":"fda4d7459075157c6d26544f273859b36bc61a37b76d5a40f6735e6a1856223d"},
+    {"name":"setup_admin","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/setup_admin.js","sha256":"c2c87ac649ca602c0a404330222f554807dd80d280eeccec5f6e7e65305fdb02"},
+    {"name":"ui_admin","type":"HTML","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/ui_admin.html","sha256":"509b03b13569f863bea6e45c4bc1caa09a5fe9628da309c1b2920341e8ee6534"},
+    {"name":"ui_balance","type":"HTML","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/ui_balance.html","sha256":"b9b7b33a3495c250be5fb4c89fe8fbe11249dc8ea8e3de0b02f041383a678b8b"},
+    {"name":"ui_home","type":"HTML","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/ui_home.html","sha256":"e232c248e69422e48feffa4c2a5f0b3dd9bd5c9f8a7fb7a2ef152eb666836a44"},
+    {"name":"ui_pay","type":"HTML","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/ui_pay.html","sha256":"eb2769d6759e36b8f0a469e9087485729a8526cd2040f45b2698c43fc56cbbf1"},
+    {"name":"ui_shop","type":"HTML","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/ui_shop.html","sha256":"7cd71cb5f52b5584b71aa94123745c51b032c2bc9a8dd936ce12eeadc5ef0be5"},
+    {"name":"update_client","type":"SERVER_JS","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/update_client.js","sha256":"ab4b4f0de1e8e4f3fcbbdd252030c874fdd0ce69576a70dc4c268a59a4278283"}
+  ],
+  "migrations": [
+    {"from":"0.0.0","to":"3.3.0","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/release/migrations/0.0.0-to-3.3.0.json","sha256":"256cdcff762aff339c8fa9e944d0855490c3e2f2444c8f93c5c1fce8e6ebb9de"},
+    {"from":"3.2.0","to":"3.3.0","url":"https://raw.githubusercontent.com/hirooct/ClassPay3/v3.3.0/release/migrations/3.2.0-to-3.3.0.json","sha256":"a13ea10ee181cafeda0c10398f8d339ae873598f1bb88a77922833db8983f6f8"}
+  ],
+  "rollback": {
+    "strategy": "code-and-deployment",
+    "dataRestore": "manual-from-spreadsheet-copy"
+  }
+}

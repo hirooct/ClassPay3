@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "from": "3.2.0",
+  "to": "3.3.0",
+  "reversible": false,
+  "dataPolicy": "additive-only",
+  "actions": [
+    {"type":"ensureSheet","name":"UpdateHistory","headers":["updateId","startedAt","finishedAt","fromVersion","toVersion","status","backupFolderId","gasVersion","deploymentId","message"]},
+    {"type":"setConfigDefault","key":"RELEASE_CHANNEL","value":"stable"},
+    {"type":"setConfigDefault","key":"RELEASE_MANIFEST_URL","value":"https://raw.githubusercontent.com/hirooct/ClassPay3/main/release/manifest.json"}
+  ]
+}

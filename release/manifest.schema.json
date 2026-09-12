@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hirooct/ClassPay3/release/manifest.schema.json",
+  "title": "ClassPay release manifest",
+  "type": "object",
+  "required": ["schemaVersion","latestVersion","minimumVersion","releaseDate","updateType","files"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "latestVersion": {"type":"string","pattern":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "minimumVersion": {"type":"string","pattern":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "releaseDate": {"type":"string","format":"date"},
+    "updateType": {"enum":["OPTIONAL","RECOMMENDED","REQUIRED"]},
+    "migrationRequired": {"type":"boolean"},
+    "releaseNotes": {"type":"array","items":{"type":"string"}},
+    "files": {"type":"array","items":{"type":"object","required":["name","type","url","sha256"]}},
+    "migrations": {"type":"array","items":{"type":"object","required":["from","to","url","sha256"]}}
+  },
+  "additionalProperties": true
+}

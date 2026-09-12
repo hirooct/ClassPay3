@@ -20,9 +20,19 @@ const SHEETS = {
   PRODUCT_ORDERS: "ProductOrders",
   COMPANY_CONTRACTS: "CompanyContracts",
   WEEKLY_SETTLEMENTS: "WeeklySettlements",
+  UPDATE_HISTORY: "UpdateHistory",
 };
 
 function doGet(e) {
+  if (e && e.parameter && String(e.parameter.health || "") === "1") {
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: true,
+      app: "ClassPay",
+      version: String(getConfig_("CLASS_PAY_VERSION", "3.3.0")),
+      spreadsheetReady: !!SpreadsheetApp.getActive().getSheetByName(SHEETS.CONFIG),
+      checkedAt: new Date().toISOString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
   const p = (e && e.parameter && e.parameter.p) ? String(e.parameter.p) : "home";
   const allow = { home: 1, shop: 1, pay: 1, admin: 1, balance: 1 };
   // ?p=ui_home はホーム画面への正式な別名として扱う
