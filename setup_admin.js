@@ -16,7 +16,7 @@ function _ensureCoreSheets_(){
   _ensureColumns_(_getCompanySnapshotsSheet_(),["snapshotAt","shopId","shopName","balance","previousBalance","growthAmount","growthRate","valueCreated"]);
   _ensureColumns_(SpreadsheetApp.getActive().getSheetByName(SHEETS.HOLDINGS||"Holdings"),["userId","shopId","shares","updatedAt"]);
   _ensureColumns_(SpreadsheetApp.getActive().getSheetByName(SHEETS.GOVERNMENT_LEDGER||"GovernmentLedger"),["ledgerId","at","type","amount","balanceAfter","referenceId","note"]);
-  _ensureColumns_(_ensureSheetWithHeader_(SHEETS.UPDATE_HISTORY||"UpdateHistory",["updateId","startedAt","finishedAt","fromVersion","toVersion","status","backupFolderId","gasVersion","deploymentId","message"]),["updateId","startedAt","finishedAt","fromVersion","toVersion","status","backupFolderId","gasVersion","deploymentId","message"]);
+  _ensureColumns_(_ensureSheetWithHeader_(SHEETS.MIGRATION_LOG||"MigrationLog",["migrationId","at","sourceSpreadsheetId","sourceVersion","targetVersion","status","backupSpreadsheetId","importedSheets","deletedSheets","validation","message"]),["migrationId","at","sourceSpreadsheetId","sourceVersion","targetVersion","status","backupSpreadsheetId","importedSheets","deletedSheets","validation","message"]);
 }
 
 function _ensureColumns_(sh,required){
@@ -28,7 +28,7 @@ function _ensureColumns_(sh,required){
 function api_adminEnsureAllSheets(adminPass){
   _assertAdminPassValue_(adminPass);
   _ensureCoreSheets_();
-  _setConfigValue_("CLASS_PAY_VERSION","3.3.0");
+  _setConfigValue_("CLASS_PAY_VERSION","4.0.0");
   return api_setupStatus();
 }
 
@@ -45,7 +45,7 @@ function _setConfigValue_(key,value){
 function api_setupStatus(){
   var ss=SpreadsheetApp.getActive(), config=ss.getSheetByName(SHEETS.CONFIG);
   var pass=config ? String(getConfig_("ADMIN_PASS","")).trim() : "";
-  return {initialized:!!pass,appName:config?String(getConfig_("APP_NAME","ClassPay")):"ClassPay",version:config?String(getConfig_("CLASS_PAY_VERSION","3.2.0")):"3.2.0",missing:["Users","Shops","Tx","Config","Holdings","CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","GovernmentLedger","ProductCatalog","ProductOrders","CompanyContracts","WeeklySettlements","UpdateHistory"].filter(function(n){return !ss.getSheetByName(n);})};
+  return {initialized:!!pass,appName:config?String(getConfig_("APP_NAME","ClassPay")):"ClassPay",version:config?String(getConfig_("CLASS_PAY_VERSION","4.0.0")):"4.0.0",missing:["Users","Shops","Tx","Config","Holdings","CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","GovernmentLedger","ProductCatalog","ProductOrders","CompanyContracts","WeeklySettlements","MigrationLog"].filter(function(n){return !ss.getSheetByName(n);})};
 }
 
 /** URLを受け取った人が先に初期化しないよう、公開前に教師が直ちに設定する一度限りの処理 */
@@ -82,15 +82,13 @@ function api_initialSetup(payload){
   _setConfigValue_("WEEKLY_TAX_AMOUNT",Number(payload.weeklyTaxAmount||0));
   _setConfigValue_("WEEKLY_USER_INTEREST_RATE",Number(payload.weeklyUserInterestRate||5));
   _setConfigValue_("WEEKLY_SHOP_INTEREST_RATE",Number(payload.weeklyShopInterestRate||0));
-  _setConfigValue_("CLASS_PAY_VERSION","3.3.0");
-  _setConfigValue_("RELEASE_CHANNEL","stable");
-  _setConfigValue_("RELEASE_MANIFEST_URL","https://raw.githubusercontent.com/hirooct/ClassPay3/main/release/manifest.json");
+  _setConfigValue_("CLASS_PAY_VERSION","4.0.0");
   return {ok:true};
 }
 
 function api_adminSettings(adminPass){
   _assertAdminPassValue_(adminPass);
-  return {appName:getConfig_("APP_NAME","ClassPay"),baseUrl:getConfig_("BASE_URL",""),interestRound:getConfig_("INTEREST_ROUND","FLOOR"),stockSpread:Number(getConfig_("STOCK_SPREAD",0.1))*100,minAmount:Number(getConfig_("MIN_AMOUNT",1)),maxAmount:Number(getConfig_("MAX_AMOUNT",500)),supportPerPoint:Number(getConfig_("SUPPORT_PER_POINT",10)),stockWeeklyLimit:Number(getConfig_("STOCK_WEEKLY_LIMIT",3)),stockDailyLimit:Number(getConfig_("STOCK_DAILY_LIMIT",2)),stockHoldDays:Number(getConfig_("STOCK_HOLD_DAYS",7)),stockMaxOwnershipPercent:Number(getConfig_("STOCK_MAX_OWNERSHIP_PERCENT",20)),stockActivityWeight:Number(getConfig_("STOCK_ACTIVITY_WEIGHT",0.2))*100,publicityMode:String(getConfig_("PUBLICITY_MODE","GOVERNMENT")),privateProviderName:String(getConfig_("PRIVATE_PROVIDER_NAME","")),recruitMinBid:Number(getConfig_("RECRUIT_MIN_BID",10)),recruitSlots:Number(getConfig_("RECRUIT_SLOTS",3)),recruitDays:Number(getConfig_("RECRUIT_DAYS",7)),announcementFee:Number(getConfig_("ANNOUNCEMENT_FEE",5)),announcementDays:Number(getConfig_("ANNOUNCEMENT_DAYS",7)),weeklyTaxAmount:Number(getConfig_("WEEKLY_TAX_AMOUNT",0)),weeklyUserInterestRate:Number(getConfig_("WEEKLY_USER_INTEREST_RATE",5)),weeklyShopInterestRate:Number(getConfig_("WEEKLY_SHOP_INTEREST_RATE",0)),classPayVersion:String(getConfig_("CLASS_PAY_VERSION","3.3.0")),updaterUrl:String(getConfig_("UPDATER_URL","")),deploymentId:String(getConfig_("DEPLOYMENT_ID","")),releaseManifestUrl:String(getConfig_("RELEASE_MANIFEST_URL",DEFAULT_RELEASE_MANIFEST_URL)),releaseChannel:String(getConfig_("RELEASE_CHANNEL","stable"))};
+  return {appName:getConfig_("APP_NAME","ClassPay"),baseUrl:getConfig_("BASE_URL",""),interestRound:getConfig_("INTEREST_ROUND","FLOOR"),stockSpread:Number(getConfig_("STOCK_SPREAD",0.1))*100,minAmount:Number(getConfig_("MIN_AMOUNT",1)),maxAmount:Number(getConfig_("MAX_AMOUNT",500)),supportPerPoint:Number(getConfig_("SUPPORT_PER_POINT",10)),stockWeeklyLimit:Number(getConfig_("STOCK_WEEKLY_LIMIT",3)),stockDailyLimit:Number(getConfig_("STOCK_DAILY_LIMIT",2)),stockHoldDays:Number(getConfig_("STOCK_HOLD_DAYS",7)),stockMaxOwnershipPercent:Number(getConfig_("STOCK_MAX_OWNERSHIP_PERCENT",20)),stockActivityWeight:Number(getConfig_("STOCK_ACTIVITY_WEIGHT",0.2))*100,publicityMode:String(getConfig_("PUBLICITY_MODE","GOVERNMENT")),privateProviderName:String(getConfig_("PRIVATE_PROVIDER_NAME","")),recruitMinBid:Number(getConfig_("RECRUIT_MIN_BID",10)),recruitSlots:Number(getConfig_("RECRUIT_SLOTS",3)),recruitDays:Number(getConfig_("RECRUIT_DAYS",7)),announcementFee:Number(getConfig_("ANNOUNCEMENT_FEE",5)),announcementDays:Number(getConfig_("ANNOUNCEMENT_DAYS",7)),weeklyTaxAmount:Number(getConfig_("WEEKLY_TAX_AMOUNT",0)),weeklyUserInterestRate:Number(getConfig_("WEEKLY_USER_INTEREST_RATE",5)),weeklyShopInterestRate:Number(getConfig_("WEEKLY_SHOP_INTEREST_RATE",0)),classPayVersion:String(getConfig_("CLASS_PAY_VERSION","4.0.0"))};
 }
 
 function api_adminSaveSettings(adminPass,payload){
@@ -117,10 +115,6 @@ function api_adminSaveSettings(adminPass,payload){
   _setConfigValue_("WEEKLY_TAX_AMOUNT",Math.max(0,Math.floor(Number(payload.weeklyTaxAmount||0))));
   _setConfigValue_("WEEKLY_USER_INTEREST_RATE",Math.max(0,Math.min(100,Number(payload.weeklyUserInterestRate||0))));
   _setConfigValue_("WEEKLY_SHOP_INTEREST_RATE",Math.max(0,Math.min(100,Number(payload.weeklyShopInterestRate||0))));
-  _setConfigValue_("UPDATER_URL",String(payload.updaterUrl||"").trim());
-  _setConfigValue_("DEPLOYMENT_ID",String(payload.deploymentId||"").trim());
-  _setConfigValue_("RELEASE_MANIFEST_URL",String(payload.releaseManifestUrl||DEFAULT_RELEASE_MANIFEST_URL).trim()||DEFAULT_RELEASE_MANIFEST_URL);
-  _setConfigValue_("RELEASE_CHANNEL",String(payload.releaseChannel||"stable").trim().toLowerCase()==="beta"?"beta":"stable");
   return {ok:true,settings:api_adminSettings(adminPass)};
 }
 

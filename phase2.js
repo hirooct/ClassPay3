@@ -14,7 +14,7 @@ function setupClassPayPhase2(){
   _ensureSheetWithHeader_(SHEETS.RETIREMENT_APPLICATIONS || "RetirementApplications", [
     "applicationId","submittedAt","shopId","shopName","userId","userName","reason","status","reviewedAt","reviewNote","reviewedBy","governmentStatus"
   ]);
-  if(typeof _weeklyReportsSheet_==="function"){_weeklyReportsSheet_();_ruleProposalsSheet_();_ruleVotesSheet_();}
+  if(typeof _weeklyReportsSheet_==="function") _weeklyReportsSheet_();
   if(typeof _marketplaceSetupSheets_==="function") _marketplaceSetupSheets_();
   var snap = _getCompanySnapshotsSheet_();
   var required = ["snapshotAt","shopId","shopName","balance","previousBalance","growthAmount","growthRate","valueCreated"];
@@ -25,7 +25,7 @@ function setupClassPayPhase2(){
       current.push(name);
     }
   });
-  return {ok:true, version:"3.2", sheets:["CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RuleProposals","RuleVotes","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","Holdings",SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger","ProductCatalog","ProductOrders","CompanyContracts","WeeklySettlements"]};
+  return {ok:true, version:"4.0", sheets:["CompanyMembers","CompanyApplications","RetirementApplications","WeeklyReports","RecruitmentPostings","EmploymentApplications","CompanyAnnouncements","Government","CompanySnapshots","Holdings",SHEETS.GOVERNMENT_LEDGER || "GovernmentLedger","ProductCatalog","ProductOrders","CompanyContracts","WeeklySettlements"]};
 }
 
 /** Shops列の並びが変わっていても、ヘッダー名に合わせて安全に追加する */

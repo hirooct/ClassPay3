@@ -20,7 +20,7 @@ const SHEETS = {
   PRODUCT_ORDERS: "ProductOrders",
   COMPANY_CONTRACTS: "CompanyContracts",
   WEEKLY_SETTLEMENTS: "WeeklySettlements",
-  UPDATE_HISTORY: "UpdateHistory",
+  MIGRATION_LOG: "MigrationLog",
 };
 
 function doGet(e) {
@@ -28,7 +28,7 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify({
       ok: true,
       app: "ClassPay",
-      version: String(getConfig_("CLASS_PAY_VERSION", "3.3.0")),
+      version: String(getConfig_("CLASS_PAY_VERSION", "4.0.0")),
       spreadsheetReady: !!SpreadsheetApp.getActive().getSheetByName(SHEETS.CONFIG),
       checkedAt: new Date().toISOString()
     })).setMimeType(ContentService.MimeType.JSON);
