@@ -1,0 +1,6 @@
+# ClassPay本体GASへ送るのは、リポジトリ直下のGASソースだけ
+# updater/、release/、docs/、tools/を本体へ混ぜない
+**/**
+!appsscript.json
+!*.js
+!*.html

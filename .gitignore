@@ -1,0 +1,6 @@
+# clasp / OAuthの認証情報はGitHubへ置かない
+.clasprc.json
+**/.clasprc.json
+client_secret*.json
+**/client_secret*.json
+node_modules/

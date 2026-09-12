@@ -1,0 +1,5 @@
+# Updater GASへ送るのは、このフォルダ直下のGASソースだけ
+**/**
+!appsscript.json
+!*.js
+!*.html

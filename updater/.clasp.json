@@ -1,0 +1,24 @@
+{
+  "scriptId": "1eNC3EuiClJWHoJTZ2-AuT0WTJc8gaiabhiLfm5VJJSgQT4SKEjCSJELh",
+  "rootDir": "",
+  "scriptExtensions": [
+    ".js",
+    ".gs"
+  ],
+  "htmlExtensions": [
+    ".html"
+  ],
+  "jsonExtensions": [
+    ".json"
+  ],
+  "filePushOrder": [
+    "Code.js",
+    "GoogleApi.js",
+    "ReleaseService.js",
+    "BackupService.js",
+    "MigrationService.js",
+    "UpdateService.js",
+    "InstallerService.js"
+  ],
+  "skipSubdirectories": true
+}
